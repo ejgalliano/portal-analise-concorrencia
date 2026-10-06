@@ -1,0 +1,7 @@
+.env
+__pycache__/
+*.pyc
+orders/*.json
+orders/*.pdf
+orders/*.docx
+.DS_Store

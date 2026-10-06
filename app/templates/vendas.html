@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{ nome_produto }}</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <main class="wrap">
+    <header class="hero">
+      <p class="selo">{{ nome_agencia }}</p>
+      <h1>{{ nome_produto }}</h1>
+      <p class="subtitulo subtitulo-hero">
+        Um relatório objetivo sobre você e seus concorrentes diretos — o que cada
+        um está fazendo online, com que intensidade, e onde há espaço que ninguém
+        está ocupando. Fatos verificados em fontes públicas, com a fonte de cada um,
+        não opinião.
+      </p>
+      <div class="preco-card">
+        <span class="preco-valor">R$ {{ preco_reais }}</span>
+        <span class="preco-legenda">por relatório &middot; pagamento único &middot; entregue por e-mail</span>
+      </div>
+      <a href="/comprar" class="btn-primario btn-link btn-grande">Gerar meu relatório</a>
+    </header>
+
+    <section class="bloco">
+      <h2>O que você recebe</h2>
+      <div class="grid-beneficios">
+        <div class="beneficio">
+          <h3>Diagnóstico completo</h3>
+          <p>Você e cada concorrente avaliados nas mesmas 13 frentes — site, redes
+          sociais, reputação, anúncios ativos e mais — para comparar lado a lado.</p>
+        </div>
+        <div class="beneficio">
+          <h3>Comparativo consolidado</h3>
+          <p>Painéis de reputação e de atividade de marketing digital, com os
+          mesmos indicadores para todas as empresas analisadas.</p>
+        </div>
+        <div class="beneficio">
+          <h3>Mapa de oportunidade</h3>
+          <p>Onde seus concorrentes estão presentes e onde não estão — para você
+          ver, com clareza, os espaços ainda livres.</p>
+        </div>
+        <div class="beneficio">
+          <h3>Fontes citadas</h3>
+          <p>Cada informação vem com a fonte e a data da consulta — nada aqui é
+          estimativa ou achismo.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="bloco">
+      <h2>O que este relatório é — e o que não é</h2>
+      <div class="grid-expectativa">
+        <div>
+          <h3>É</h3>
+          <ul>
+            <li>Um retrato factual, baseado em pesquisa pública, de você e dos
+            concorrentes que você escolher.</li>
+            <li>Comparável: as mesmas frentes, para todas as empresas.</li>
+            <li>Honesto sobre os limites: quando uma informação não pôde ser
+            confirmada, o relatório mostra "n/d" em vez de inventar.</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Não é</h3>
+          <ul>
+            <li>Uma consultoria com opinião ou recomendação estratégica pronta.</li>
+            <li>Uma garantia de que toda informação sobre todo concorrente será
+            encontrada — depende do que está público.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="bloco bloco-cta">
+      <h2>Pronto para ver onde você está?</h2>
+      <p>Informe sua empresa e até 3 concorrentes — o relatório chega no seu
+      e-mail assim que a pesquisa e a verificação terminarem.</p>
+      <a href="/comprar" class="btn-primario btn-link btn-grande">Gerar meu relatório</a>
+    </section>
+
+    <footer class="rodape">
+      <p>{{ nome_produto }} &middot; {{ nome_agencia }}</p>
+    </footer>
+  </main>
+</body>
+</html>

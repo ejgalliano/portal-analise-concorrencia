@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{ nome_produto }}</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <main class="wrap wrap-estreito">
+    <header>
+      {% if resultado == "sucesso" %}
+        <h1>Pagamento confirmado</h1>
+      {% elif resultado == "pendente" %}
+        <h1>Pagamento em processamento</h1>
+      {% else %}
+        <h1>Pagamento não concluído</h1>
+      {% endif %}
+      <p class="subtitulo">
+        {% if resultado == "falha" %}
+          Nenhuma cobrança foi feita. Você pode tentar de novo quando quiser.
+        {% else %}
+          Acompanhe abaixo o andamento do seu relatório — pode deixar esta página
+          aberta ou fechar e aguardar o e-mail.
+        {% endif %}
+      </p>
+    </header>
+
+    <div id="status-pedido" class="status-pedido" hidden></div>
+
+    {% if resultado == "falha" %}
+      <a href="/comprar" class="btn-primario btn-link">Tentar novamente</a>
+    {% else %}
+      <a href="/" class="btn-secundario btn-link">Voltar para o início</a>
+    {% endif %}
+  </main>
+
+  <script>
+    window.__pedidoId = {{ pedido_id|tojson }};
+    window.__resultado = {{ resultado|tojson }};
+  </script>
+  <script src="/static/retorno.js"></script>
+</body>
+</html>

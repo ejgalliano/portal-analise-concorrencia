@@ -1,0 +1,239 @@
+/* ===========================================================
+   Relatório de Análise de Concorrência — folha de estilo (PDF)
+   Paleta e identidade: ver variáveis abaixo — trocar aqui é o
+   suficiente para rebrandear todo o documento.
+   =========================================================== */
+
+:root {
+  --azul-escuro: #1c3f60;
+  --azul: #2f6690;
+  --azul-claro: #e7eef3;
+  --cinza-texto: #2b2f33;
+  --cinza-claro: #6b7280;
+  --cinza-fundo: #f6f8fa;
+  --borda: #dbe2e8;
+  --verde: #1f8a4c;
+  --verde-fundo: #e5f6ec;
+  --vermelho: #9a3b3b;
+  --vermelho-fundo: #f3e8e8;
+  --amarelo: #8a6a1f;
+  --amarelo-fundo: #f8f0dd;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  color: var(--cinza-texto);
+  font-size: 10.5pt;
+  line-height: 1.55;
+}
+
+/* ---------- Página e numeração ---------- */
+
+@page {
+  size: A4;
+  margin: 2.6cm 2cm 2.2cm 2cm;
+
+  @top-center {
+    content: "Relatório de Análise de Concorrência";
+    font-size: 8pt;
+    color: var(--cinza-claro);
+  }
+  @bottom-right {
+    content: counter(page) " / " counter(pages);
+    font-size: 8pt;
+    color: var(--cinza-claro);
+  }
+  @bottom-left {
+    content: "Documento confidencial";
+    font-size: 8pt;
+    color: var(--cinza-claro);
+  }
+}
+
+@page capa {
+  margin: 0;
+  @top-center { content: none; }
+  @bottom-right { content: none; }
+  @bottom-left { content: none; }
+}
+
+/* ---------- Capa ---------- */
+
+.capa {
+  page: capa;
+  break-after: page;
+  height: 29.7cm;
+  background: linear-gradient(160deg, var(--azul-escuro) 0%, var(--azul) 100%);
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 2.4cm;
+}
+
+.capa-marca {
+  font-size: 13pt;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.capa-conteudo { margin-top: 7cm; }
+
+.capa-rotulo {
+  font-size: 12pt;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #cfe0ec;
+  margin-bottom: 0.4cm;
+}
+
+.capa-titulo {
+  font-size: 30pt;
+  font-weight: 700;
+  margin: 0 0 0.6cm 0;
+  line-height: 1.2;
+}
+
+.capa-data {
+  font-size: 11pt;
+  color: #cfe0ec;
+}
+
+.capa-rodape {
+  font-size: 9pt;
+  color: #cfe0ec;
+  border-top: 1px solid rgba(255, 255, 255, 0.25);
+  padding-top: 0.5cm;
+}
+
+/* ---------- Seções gerais ---------- */
+
+.secao { break-before: page; }
+.quebra-antes { break-before: page; }
+
+h2 {
+  font-size: 16pt;
+  color: var(--azul-escuro);
+  border-bottom: 2px solid var(--azul-escuro);
+  padding-bottom: 0.15cm;
+  margin-bottom: 0.5cm;
+}
+
+h3 {
+  font-size: 11.5pt;
+  color: var(--azul);
+  margin: 0.4cm 0 0.2cm 0;
+}
+
+p.intro {
+  color: var(--cinza-claro);
+  font-size: 9.5pt;
+}
+
+p.legenda {
+  font-size: 9pt;
+  color: var(--cinza-claro);
+  margin-bottom: 0.4cm;
+}
+
+/* ---------- Capítulo por empresa ---------- */
+
+.empresa-capitulo { break-before: page; }
+
+.empresa-cabecalho {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4cm;
+  border-bottom: 2px solid var(--azul-escuro);
+  padding-bottom: 0.15cm;
+  margin-bottom: 0.5cm;
+}
+
+.empresa-cabecalho h2 {
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+
+.tag-cliente {
+  background: var(--azul-escuro);
+  color: #fff;
+  font-size: 8pt;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.08cm 0.3cm;
+  border-radius: 999px;
+}
+
+.frente {
+  display: flex;
+  gap: 0.4cm;
+  margin-bottom: 0.45cm;
+  break-inside: avoid;
+}
+
+.frente-numero {
+  flex: 0 0 0.75cm;
+  height: 0.75cm;
+  border-radius: 50%;
+  background: var(--azul-claro);
+  color: var(--azul-escuro);
+  font-weight: 700;
+  font-size: 10pt;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.frente-corpo h3 { margin-top: 0; }
+.frente-corpo p { margin: 0; }
+
+/* ---------- Tabelas ---------- */
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 0.5cm;
+  font-size: 9.5pt;
+}
+
+thead th {
+  background: var(--azul-escuro);
+  color: #fff;
+  text-align: left;
+  padding: 0.22cm 0.3cm;
+  font-weight: 600;
+}
+
+tbody td {
+  padding: 0.2cm 0.3cm;
+  border-bottom: 1px solid var(--borda);
+  vertical-align: top;
+}
+
+tbody tr:nth-child(even) { background: var(--cinza-fundo); }
+
+.col-empresa { font-weight: 600; color: var(--azul-escuro); white-space: nowrap; }
+.col-centro { text-align: center; }
+.col-link { font-size: 8.5pt; color: var(--cinza-claro); word-break: break-all; }
+
+.tabela-fontes td { font-size: 8.5pt; }
+
+/* ---------- Selos (mapa de oportunidade) ---------- */
+
+.badge {
+  display: inline-block;
+  min-width: 0.6cm;
+  padding: 0.05cm 0.22cm;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 9pt;
+  text-align: center;
+}
+
+.badge-ok { background: var(--verde-fundo); color: var(--verde); }
+.badge-off { background: var(--vermelho-fundo); color: var(--vermelho); }
+.badge-nd { background: var(--amarelo-fundo); color: var(--amarelo); font-size: 7.5pt; }

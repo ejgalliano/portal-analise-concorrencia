@@ -1,0 +1,10 @@
+.env
+.env.example
+.git
+.gitignore
+__pycache__/
+*.pyc
+orders/*.json
+orders/*.pdf
+orders/*.docx
+README.md

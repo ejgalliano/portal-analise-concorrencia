@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<title>Relatório de Análise de Concorrência — {{ cliente_nome }}</title>
+<style>{{ css|safe }}</style>
+</head>
+<body>
+
+  <!-- CAPA -->
+  <section class="capa">
+    <div class="capa-marca">{{ nome_agencia }}</div>
+    <div class="capa-conteudo">
+      <div class="capa-rotulo">Relatório de Análise de Concorrência</div>
+      <h1 class="capa-titulo">{{ cliente_nome }}</h1>
+      <div class="capa-data">{{ data_geracao }}</div>
+    </div>
+    <div class="capa-rodape">
+      Documento confidencial, preparado exclusivamente para {{ cliente_nome }}.
+      {{ nome_produto }} · {{ nome_agencia }}
+    </div>
+  </section>
+
+  <!-- SUMÁRIO EXECUTIVO -->
+  <section class="secao">
+    <h2>Sumário executivo</h2>
+    <p>{{ secoes.sumario_executivo }}</p>
+  </section>
+
+  <!-- METODOLOGIA -->
+  <section class="secao">
+    <h2>Metodologia e fontes</h2>
+    <p>{{ secoes.metodologia_e_fontes }}</p>
+  </section>
+
+  <!-- DIAGNÓSTICO POR EMPRESA -->
+  <section class="secao">
+    <h2>Diagnóstico completo por empresa</h2>
+    <p class="intro">
+      Cada empresa abaixo foi avaliada nas mesmas 13 frentes, a partir das fontes
+      descritas em "Metodologia e fontes". Cada empresa é um capítulo próprio,
+      para facilitar a leitura.
+    </p>
+  </section>
+
+  {% for nome_empresa, dados in resultados.items() %}
+  <section class="empresa-capitulo">
+    <div class="empresa-cabecalho">
+      <h2>{{ nome_empresa }}</h2>
+      {% if dados.papel == "cliente" %}<span class="tag-cliente">Empresa cliente</span>{% endif %}
+    </div>
+    {% for f in frentes %}
+      {% set entrada = dados.frentes.get(f.numero|string, {}) %}
+      <div class="frente">
+        <div class="frente-numero">{{ f.numero }}</div>
+        <div class="frente-corpo">
+          <h3>{{ f.titulo }}</h3>
+          <p>{{ entrada.get("texto", "Não pesquisado.") }}</p>
+        </div>
+      </div>
+    {% endfor %}
+  </section>
+  {% endfor %}
+
+  <!-- COMPARATIVO CONSOLIDADO -->
+  <section class="secao quebra-antes">
+    <h2>Comparativo consolidado</h2>
+    {% for bloco in secoes.comparativo_consolidado %}
+      <h3>{{ bloco.frente }}</h3>
+      <table>
+        <thead><tr><th>Empresa</th><th>Resumo</th></tr></thead>
+        <tbody>
+          {% for linha in bloco.linhas %}
+          <tr><td class="col-empresa">{{ linha.empresa }}</td><td>{{ linha.resumo }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% endfor %}
+  </section>
+
+  <!-- PAINEL DE REPUTAÇÃO -->
+  <section class="secao">
+    <h2>Painel de reputação e sinais BR</h2>
+    {% if secoes.painel_reputacao_sinais_br %}
+    <table>
+      <thead>
+        <tr>
+          <th>Empresa</th>
+          {% for coluna in secoes.painel_reputacao_sinais_br[0].colunas.keys() %}
+          <th>{{ coluna|rotulo_coluna }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in secoes.painel_reputacao_sinais_br %}
+        <tr>
+          <td class="col-empresa">{{ item.empresa }}</td>
+          {% for valor in item.colunas.values() %}
+          <td>{{ valor }}</td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+  </section>
+
+  <!-- PAINEL DE MARKETING DIGITAL -->
+  <section class="secao">
+    <h2>Painel de atividade de marketing digital</h2>
+    {% if secoes.painel_atividade_marketing_digital %}
+    <table>
+      <thead>
+        <tr>
+          <th>Empresa</th>
+          {% for coluna in secoes.painel_atividade_marketing_digital[0].colunas.keys() %}
+          <th>{{ coluna|rotulo_coluna }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in secoes.painel_atividade_marketing_digital %}
+        <tr>
+          <td class="col-empresa">{{ item.empresa }}</td>
+          {% for valor in item.colunas.values() %}
+          <td>{{ valor }}</td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+  </section>
+
+  <!-- MAPA DE OPORTUNIDADE -->
+  <section class="secao quebra-antes">
+    <h2>Mapa de oportunidade comparativo</h2>
+    <p class="legenda">
+      <span class="badge badge-ok">✓</span> confirmado como presente ·
+      <span class="badge badge-off">—</span> confirmado como ausente ·
+      <span class="badge badge-nd">n/d</span> não determinável nesta consulta
+    </p>
+    {% if secoes.mapa_oportunidade_comparativo %}
+    <table>
+      <thead>
+        <tr>
+          <th>Canal / frente</th>
+          {% for nome in secoes.mapa_oportunidade_comparativo[0].empresas.keys() %}
+          <th>{{ nome }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in secoes.mapa_oportunidade_comparativo %}
+        <tr>
+          <td class="col-empresa">{{ item.canal }}</td>
+          {% for valor in item.empresas.values() %}
+          <td class="col-centro">
+            {% if valor == "✓" %}<span class="badge badge-ok">✓</span>
+            {% elif valor == "—" %}<span class="badge badge-off">—</span>
+            {% else %}<span class="badge badge-nd">n/d</span>{% endif %}
+          </td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+  </section>
+
+  <!-- FONTES CITADAS -->
+  <section class="secao">
+    <h2>Fontes citadas</h2>
+    {% if secoes.fontes_citadas %}
+    <table class="tabela-fontes">
+      <thead><tr><th>Fonte</th><th>Link</th><th>Data</th></tr></thead>
+      <tbody>
+        {% for f in secoes.fontes_citadas %}
+        <tr><td>{{ f.nome }}</td><td class="col-link">{{ f.url }}</td><td>{{ f.data }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+  </section>
+
+  <!-- SOBRE ATUALIZAÇÕES -->
+  <section class="secao">
+    <h2>Sobre atualizações</h2>
+    <p>{{ secoes.sobre_atualizacoes }}</p>
+  </section>
+
+</body>
+</html>

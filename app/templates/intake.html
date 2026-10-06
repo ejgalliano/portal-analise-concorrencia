@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{ nome_produto }}</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <main class="wrap">
+    <header>
+      <h1>{{ nome_produto }}</h1>
+      <p class="subtitulo">
+        Informe sua empresa e seus concorrentes. Você recebe por e-mail um relatório
+        objetivo, com fatos verificados e a fonte de cada um — sem opinião, só o que
+        foi encontrado publicamente.
+      </p>
+    </header>
+
+    <form id="form-pedido">
+      <section class="bloco">
+        <h2>Sua empresa</h2>
+        <div class="campo">
+          <label>Nome da empresa *</label>
+          <input type="text" name="cliente_nome" required />
+        </div>
+        <div class="campo">
+          <label>E-mail para receber o relatório *</label>
+          <input type="email" name="cliente_email" required />
+        </div>
+        <div class="grid3">
+          <div class="campo">
+            <label>Site</label>
+            <input type="text" name="cliente_site" placeholder="https://..." />
+          </div>
+          <div class="campo">
+            <label>Instagram</label>
+            <input type="text" name="cliente_instagram" placeholder="@usuario" />
+          </div>
+          <div class="campo">
+            <label>Facebook</label>
+            <input type="text" name="cliente_facebook" placeholder="facebook.com/pagina" />
+          </div>
+        </div>
+        <div class="campo">
+          <label>CNPJ (opcional)</label>
+          <input type="text" name="cliente_cnpj" />
+          <small>Ajuda a confirmar dados públicos como porte e tempo de atividade. Sem CNPJ, o relatório é gerado só com o que for encontrado pelas outras âncoras.</small>
+        </div>
+      </section>
+
+      <section class="bloco">
+        <h2>Concorrentes</h2>
+        <p class="ajuda">
+          Para cada concorrente, informe pelo menos um: site, Instagram ou Facebook —
+          é o que garante que estamos falando da empresa certa.
+        </p>
+        <div id="lista-concorrentes"></div>
+        <button type="button" id="btn-add-concorrente" class="btn-secundario">+ Adicionar concorrente</button>
+      </section>
+
+      <button type="submit" class="btn-primario">Gerar meu relatório</button>
+    </form>
+
+    <div id="status-pedido" class="status-pedido" hidden></div>
+  </main>
+
+  <template id="template-concorrente">
+    <div class="concorrente">
+      <div class="campo">
+        <label>Nome do concorrente *</label>
+        <input type="text" class="c-nome" required />
+      </div>
+      <div class="grid3">
+        <div class="campo">
+          <label>Site</label>
+          <input type="text" class="c-site" placeholder="https://..." />
+        </div>
+        <div class="campo">
+          <label>Instagram</label>
+          <input type="text" class="c-instagram" placeholder="@usuario" />
+        </div>
+        <div class="campo">
+          <label>Facebook</label>
+          <input type="text" class="c-facebook" placeholder="facebook.com/pagina" />
+        </div>
+      </div>
+      <div class="campo">
+        <label>CNPJ (opcional)</label>
+        <input type="text" class="c-cnpj" />
+      </div>
+      <button type="button" class="btn-remover">Remover</button>
+    </div>
+  </template>
+
+  <script src="/static/intake.js"></script>
+</body>
+</html>
