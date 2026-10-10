@@ -1,21 +1,26 @@
 /* ===========================================================
    Relatório de Análise de Concorrência — folha de estilo (PDF)
-   Paleta e identidade: ver variáveis abaixo — trocar aqui é o
+   Identidade visual da VMAI: cinza-chumbo (#424242) como cor
+   estrutural, vermelho (#ef0c0c) como acento pontual — usado só em
+   pequenos detalhes (tag do cliente, anel dos números de frente, a
+   faixa da capa) para não pesar a leitura. Trocar aqui é o
    suficiente para rebrandear todo o documento.
    =========================================================== */
 
 :root {
-  --azul-escuro: #1c3f60;
-  --azul: #2f6690;
-  --azul-claro: #e7eef3;
+  --marca-cinza: #424242;
+  --marca-cinza-suave: #6e6e6e;
+  --marca-vermelho: #ef0c0c;
+  --creme: #f7f2e7;
+  --creme-escuro: #efe4cf;
   --cinza-texto: #2b2f33;
   --cinza-claro: #6b7280;
   --cinza-fundo: #f6f8fa;
   --borda: #dbe2e8;
   --verde: #1f8a4c;
   --verde-fundo: #e5f6ec;
-  --vermelho: #9a3b3b;
-  --vermelho-fundo: #f3e8e8;
+  --badge-vermelho: #9a3b3b;
+  --badge-vermelho-fundo: #f3e8e8;
   --amarelo: #8a6a1f;
   --amarelo-fundo: #f8f0dd;
 }
@@ -23,7 +28,7 @@
 * { box-sizing: border-box; }
 
 body {
-  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-family: "Helvetica Neue", Helvetica, Arial, "Liberation Sans", sans-serif;
   color: var(--cinza-texto);
   font-size: 10.5pt;
   line-height: 1.55;
@@ -65,19 +70,17 @@ body {
   page: capa;
   break-after: page;
   height: 29.7cm;
-  background: linear-gradient(160deg, var(--azul-escuro) 0%, var(--azul) 100%);
-  color: #fff;
+  background: var(--creme);
+  color: var(--marca-cinza);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   padding: 2.4cm;
 }
 
-.capa-marca {
-  font-size: 13pt;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+.capa-logo {
+  width: 4.6cm;
+  height: auto;
 }
 
 .capa-conteudo { margin-top: 7cm; }
@@ -86,8 +89,15 @@ body {
   font-size: 12pt;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: #cfe0ec;
-  margin-bottom: 0.4cm;
+  color: var(--marca-cinza-suave);
+  margin-bottom: 0.5cm;
+}
+
+.capa-acento {
+  width: 2.2cm;
+  height: 0.11cm;
+  background: var(--marca-vermelho);
+  margin-bottom: 0.55cm;
 }
 
 .capa-titulo {
@@ -95,17 +105,18 @@ body {
   font-weight: 700;
   margin: 0 0 0.6cm 0;
   line-height: 1.2;
+  color: var(--marca-cinza);
 }
 
 .capa-data {
   font-size: 11pt;
-  color: #cfe0ec;
+  color: var(--marca-cinza-suave);
 }
 
 .capa-rodape {
   font-size: 9pt;
-  color: #cfe0ec;
-  border-top: 1px solid rgba(255, 255, 255, 0.25);
+  color: var(--marca-cinza-suave);
+  border-top: 1px solid rgba(66, 66, 66, 0.22);
   padding-top: 0.5cm;
 }
 
@@ -116,15 +127,15 @@ body {
 
 h2 {
   font-size: 16pt;
-  color: var(--azul-escuro);
-  border-bottom: 2px solid var(--azul-escuro);
+  color: var(--marca-cinza);
+  border-bottom: 2px solid var(--marca-cinza);
   padding-bottom: 0.15cm;
   margin-bottom: 0.5cm;
 }
 
 h3 {
   font-size: 11.5pt;
-  color: var(--azul);
+  color: var(--marca-cinza-suave);
   margin: 0.4cm 0 0.2cm 0;
 }
 
@@ -147,7 +158,7 @@ p.legenda {
   display: flex;
   align-items: baseline;
   gap: 0.4cm;
-  border-bottom: 2px solid var(--azul-escuro);
+  border-bottom: 2px solid var(--marca-cinza);
   padding-bottom: 0.15cm;
   margin-bottom: 0.5cm;
 }
@@ -159,7 +170,7 @@ p.legenda {
 }
 
 .tag-cliente {
-  background: var(--azul-escuro);
+  background: var(--marca-vermelho);
   color: #fff;
   font-size: 8pt;
   text-transform: uppercase;
@@ -179,8 +190,9 @@ p.legenda {
   flex: 0 0 0.75cm;
   height: 0.75cm;
   border-radius: 50%;
-  background: var(--azul-claro);
-  color: var(--azul-escuro);
+  background: var(--creme);
+  color: var(--marca-cinza);
+  border: 1.3pt solid var(--marca-vermelho);
   font-weight: 700;
   font-size: 10pt;
   display: flex;
@@ -201,7 +213,7 @@ table {
 }
 
 thead th {
-  background: var(--azul-escuro);
+  background: var(--marca-cinza);
   color: #fff;
   text-align: left;
   padding: 0.22cm 0.3cm;
@@ -216,7 +228,7 @@ tbody td {
 
 tbody tr:nth-child(even) { background: var(--cinza-fundo); }
 
-.col-empresa { font-weight: 600; color: var(--azul-escuro); white-space: nowrap; }
+.col-empresa { font-weight: 600; color: var(--marca-cinza); white-space: nowrap; }
 .col-centro { text-align: center; }
 .col-link { font-size: 8.5pt; color: var(--cinza-claro); word-break: break-all; }
 
@@ -235,5 +247,5 @@ tbody tr:nth-child(even) { background: var(--cinza-fundo); }
 }
 
 .badge-ok { background: var(--verde-fundo); color: var(--verde); }
-.badge-off { background: var(--vermelho-fundo); color: var(--vermelho); }
+.badge-off { background: var(--badge-vermelho-fundo); color: var(--badge-vermelho); }
 .badge-nd { background: var(--amarelo-fundo); color: var(--amarelo); font-size: 7.5pt; }

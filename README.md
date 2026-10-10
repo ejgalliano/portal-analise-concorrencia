@@ -66,14 +66,15 @@ verdade — ver Etapa 3 e Etapa 6 do plano de teste.**
 
 ### Sobre o design do PDF
 
-O visual (cores, tipografia, capa, selos) foi montado com uma paleta
-azul-marinho neutra e profissional, consistente com o site, e com "VMAI"
-como marca-texto na capa (não há logo embutido ainda, porque nenhum
-arquivo de logo foi fornecido). Trocar qualquer cor, fonte ou texto é
-mexer só em `app/static/relatorio.css` e `app/templates/relatorio.html`
-— o resto do sistema não precisa mudar. Se você tiver um arquivo de logo
-(SVG ou PNG), é só colocar em `app/static/` e referenciar na capa
-(`.capa-marca` no template) para substituir o texto pela imagem.
+O visual segue a identidade real da VMAI: cinza-chumbo (`#424242`) como
+cor estrutural (títulos, tabelas, capítulos) e o vermelho da marca
+(`#ef0c0c`) só em detalhes pontuais — a faixa da capa, o anel dos
+números de frente e a etiqueta "Empresa cliente" — para dar personalidade
+sem pesar a leitura. A capa usa o logo de verdade
+(`app/static/vmai-logo.png`, fundo transparente) em vez de texto, sobre
+um fundo creme (`#f7f2e7`). Trocar qualquer cor, fonte ou imagem é mexer
+só em `app/static/relatorio.css` (variáveis no topo do arquivo) e
+`app/static/vmai-logo.png` — o resto do sistema não precisa mudar.
 
 ## O que ainda não está aqui (de propósito)
 
