@@ -86,11 +86,198 @@ def _get_client() -> anthropic.Anthropic:
 
 def _extrair_json(texto: str) -> dict:
     """Extrai o primeiro bloco JSON válido da resposta do modelo (tolera
-    que o modelo tenha envolvido o JSON em ```json ... ``` ou em texto)."""
+    que o modelo tenha envolvido o JSON em ```json ... ``` ou em texto).
+
+    Usado só como ÚLTIMO recurso, se o modelo não chamar a tool de saída
+    estruturada (ver _extrair_tool_input) — pedir para o modelo escrever
+    um JSON gigante como texto livre é frágil: basta uma aspas não
+    escapada dentro de um parágrafo pesquisado (comum, já que o texto
+    vem de pesquisa web) para quebrar o parsing. As funções de pesquisa
+    evitam depender disso sempre que possível."""
     bloco = re.search(r"\{.*\}", texto, re.DOTALL)
     if not bloco:
         raise ValueError("A resposta do modelo não contém um bloco JSON reconhecível.")
     return json.loads(bloco.group(0))
+
+
+def _extrair_tool_input(resposta, nome_tool: str) -> dict:
+    """Pega o input (já validado contra o schema pela própria API — sem
+    risco de JSON malformado) da chamada à tool de saída estruturada
+    `nome_tool`. Se o modelo não chamou a tool (respondeu em texto livre
+    por algum motivo), cai para _extrair_json no texto como reserva."""
+    for bloco in resposta.content:
+        if getattr(bloco, "type", None) == "tool_use" and bloco.name == nome_tool:
+            return bloco.input
+    texto_final = "".join(
+        bloco.text for bloco in resposta.content if getattr(bloco, "type", None) == "text"
+    )
+    if not texto_final:
+        raise ValueError(f"O modelo não chamou a tool '{nome_tool}' nem devolveu texto para extrair JSON.")
+    return _extrair_json(texto_final)
+
+
+def _schema_frente() -> dict:
+    return {
+        "type": "object",
+        "properties": {
+            "texto": {
+                "type": "string",
+                "description": "Parágrafo denso e factual, terminando com a citação de fonte(s) entre colchetes.",
+            },
+            "fontes": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "nome": {"type": "string"},
+                        "url": {"type": "string"},
+                        "data": {"type": "string", "description": "DD/MM/AAAA"},
+                    },
+                    "required": ["nome", "url", "data"],
+                },
+            },
+        },
+        "required": ["texto", "fontes"],
+    }
+
+
+def _tool_registrar_pesquisa() -> dict:
+    """Tool de saída estruturada para pesquisar_empresa — uma propriedade
+    por frente (chave "1".."13", igual à estrutura que docx_builder e
+    pdf_builder esperam). Gerada a partir de FRENTES para nunca
+    dessincronizar do relatório real."""
+    propriedades = {str(f["numero"]): _schema_frente() for f in FRENTES}
+    return {
+        "name": "registrar_pesquisa_empresa",
+        "description": (
+            "Registra o resultado da pesquisa das 13 frentes sobre a empresa. "
+            "Chame esta tool UMA VEZ, só depois de terminar toda a pesquisa web."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": propriedades,
+            "required": [str(f["numero"]) for f in FRENTES],
+        },
+    }
+
+
+_TOOL_REGISTRAR_SINTESE = {
+    "name": "registrar_sintese",
+    "description": "Registra as seções comparativas finais do relatório.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "sumario_executivo": {
+                "type": "string",
+                "description": "3-5 parágrafos objetivos descrevendo o que foi coletado, sem juízo de valor.",
+            },
+            "metodologia_e_fontes": {
+                "type": "string",
+                "description": "Parágrafos explicando fontes usadas e limitações reais de coleta encontradas.",
+            },
+            "comparativo_consolidado": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "frente": {"type": "string"},
+                        "linhas": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "empresa": {"type": "string"},
+                                    "resumo": {"type": "string", "description": "1-2 frases factuais."},
+                                },
+                                "required": ["empresa", "resumo"],
+                            },
+                        },
+                    },
+                    "required": ["frente", "linhas"],
+                },
+            },
+            "painel_reputacao_sinais_br": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "empresa": {"type": "string"},
+                        "colunas": {
+                            "type": "object",
+                            "properties": {
+                                "reclame_aqui": {"type": "string"},
+                                "google_meu_negocio": {"type": "string"},
+                                "mencoes": {"type": "string"},
+                            },
+                            "required": ["reclame_aqui", "google_meu_negocio", "mencoes"],
+                        },
+                    },
+                    "required": ["empresa", "colunas"],
+                },
+            },
+            "painel_atividade_marketing_digital": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "empresa": {"type": "string"},
+                        "colunas": {
+                            "type": "object",
+                            "properties": {
+                                "seguidores_instagram": {"type": "string"},
+                                "posts_30_dias": {"type": "string"},
+                                "anuncios_ativos": {"type": "string"},
+                            },
+                            "required": ["seguidores_instagram", "posts_30_dias", "anuncios_ativos"],
+                        },
+                    },
+                    "required": ["empresa", "colunas"],
+                },
+            },
+            "mapa_oportunidade_comparativo": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "canal": {"type": "string"},
+                        "empresas": {
+                            "type": "object",
+                            "description": "Mapa nome da empresa -> '✓' (presente), '—' (ausente) ou 'n/d' (não determinável). Nunca omita uma empresa.",
+                            "additionalProperties": {"type": "string"},
+                        },
+                    },
+                    "required": ["canal", "empresas"],
+                },
+            },
+            "fontes_citadas": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "nome": {"type": "string"},
+                        "url": {"type": "string"},
+                        "data": {"type": "string", "description": "DD/MM/AAAA"},
+                    },
+                    "required": ["nome", "url", "data"],
+                },
+            },
+            "sobre_atualizacoes": {
+                "type": "string",
+                "description": "Parágrafo curto explicando que este é um retrato datado, e atualização é adquirida avulsamente.",
+            },
+        },
+        "required": [
+            "sumario_executivo",
+            "metodologia_e_fontes",
+            "comparativo_consolidado",
+            "painel_reputacao_sinais_br",
+            "painel_atividade_marketing_digital",
+            "mapa_oportunidade_comparativo",
+            "fontes_citadas",
+            "sobre_atualizacoes",
+        ],
+    },
+}
 
 
 def _prompt_frentes() -> str:
@@ -146,13 +333,12 @@ def pesquisar_empresa(empresa: Empresa, papel: str, uso_acumulado: dict | None =
         f"Empresa a pesquisar ({papel}): {empresa.nome}.\n"
         f"Âncoras digitais informadas: {ancoras_txt}.\n"
         f"CNPJ informado: {empresa.cnpj or 'não informado'}.\n\n"
-        "Pesquise as 13 frentes abaixo e devolva SOMENTE um JSON válido, sem "
-        "nenhum texto fora do JSON, no formato:\n"
-        '{"1": {"texto": "...", "fontes": [{"nome": "...", "url": "...", "data": "DD/MM/AAAA"}]}, '
-        '"2": {...}, ..., "13": {...}}\n\n'
-        "Cada campo \"texto\" deve ser um parágrafo denso e factual (no estilo: "
-        "'Instagram: 890 seguidores, 3 posts/30 dias...'), terminando com a "
-        "citação de fonte(s) entre colchetes. Frentes:\n\n" + _prompt_frentes()
+        "Pesquise as 13 frentes abaixo. Cada campo \"texto\" deve ser um "
+        "parágrafo denso e factual (no estilo: 'Instagram: 890 seguidores, "
+        "3 posts/30 dias...'), terminando com a citação de fonte(s) entre "
+        "colchetes. Quando terminar toda a pesquisa, chame a tool "
+        "registrar_pesquisa_empresa com os 13 resultados de uma vez — não "
+        "responda em texto livre. Frentes:\n\n" + _prompt_frentes()
     )
 
     resposta = _get_client().messages.create(
@@ -160,16 +346,16 @@ def pesquisar_empresa(empresa: Empresa, papel: str, uso_acumulado: dict | None =
         max_tokens=8000,
         system=system,
         messages=[{"role": "user", "content": prompt}],
-        tools=[{"type": "web_search_20250305", "name": "web_search", "max_uses": 40}],
+        tools=[
+            {"type": "web_search_20250305", "name": "web_search", "max_uses": 40},
+            _tool_registrar_pesquisa(),
+        ],
     )
 
     if uso_acumulado is not None:
         _somar_uso(uso_acumulado, resposta)
 
-    texto_final = "".join(
-        bloco.text for bloco in resposta.content if getattr(bloco, "type", None) == "text"
-    )
-    return _extrair_json(texto_final)
+    return _extrair_tool_input(resposta, "registrar_pesquisa_empresa")
 
 
 def sintetizar_secoes_gerais(cliente_nome: str, resultados: dict[str, dict], uso_acumulado: dict | None = None) -> dict:
@@ -199,21 +385,11 @@ def sintetizar_secoes_gerais(cliente_nome: str, resultados: dict[str, dict], uso
         f"Empresa cliente: {cliente_nome}. Dados brutos pesquisados de todas as "
         "empresas (cliente e concorrentes), por frente:\n\n"
         + json.dumps(resultados, ensure_ascii=False, indent=2)
-        + "\n\nProduza SOMENTE um JSON válido, sem texto fora do JSON, com esta "
-        "estrutura exata:\n"
-        "{\n"
-        '  "sumario_executivo": "3-5 parágrafos objetivos descrevendo o que foi coletado, sem juízo de valor",\n'
-        '  "metodologia_e_fontes": "parágrafos explicando fontes usadas e limitações reais de coleta encontradas",\n'
-        '  "comparativo_consolidado": [{"frente": "Nome da frente", "linhas": [{"empresa": "...", "resumo": "1-2 frases factuais"}]}],\n'
-        '  "painel_reputacao_sinais_br": [{"empresa": "...", "colunas": {"reclame_aqui": "...", "google_meu_negocio": "...", "mencoes": "..."}}],\n'
-        '  "painel_atividade_marketing_digital": [{"empresa": "...", "colunas": {"seguidores_instagram": "...", "posts_30_dias": "...", "anuncios_ativos": "..."}}],\n'
-        '  "mapa_oportunidade_comparativo": [{"canal": "Nome do canal/frente", "empresas": {"Nome da empresa": "✓ ou — ou n/d"}}],\n'
-        '  "fontes_citadas": [{"nome": "...", "url": "...", "data": "DD/MM/AAAA"}],\n'
-        '  "sobre_atualizacoes": "parágrafo curto explicando que este é um retrato datado, e atualização é adquirida avulsamente"\n'
-        "}\n\n"
-        "Use ✓ quando o canal/frente foi confirmado como presente, — quando foi "
-        "confirmado como ausente, e n/d quando não pôde ser determinado nesta "
-        "consulta — nunca omita uma empresa de uma linha do mapa."
+        + "\n\nChame a tool registrar_sintese com as seções comparativas finais "
+        "— não responda em texto livre. Use ✓ quando o canal/frente foi "
+        "confirmado como presente, — quando foi confirmado como ausente, e "
+        "n/d quando não pôde ser determinado nesta consulta — nunca omita "
+        "uma empresa de uma linha do mapa de oportunidade."
     )
 
     resposta = _get_client().messages.create(
@@ -221,15 +397,13 @@ def sintetizar_secoes_gerais(cliente_nome: str, resultados: dict[str, dict], uso
         max_tokens=8000,
         system=system,
         messages=[{"role": "user", "content": prompt}],
+        tools=[_TOOL_REGISTRAR_SINTESE],
     )
 
     if uso_acumulado is not None:
         _somar_uso(uso_acumulado, resposta)
 
-    texto_final = "".join(
-        bloco.text for bloco in resposta.content if getattr(bloco, "type", None) == "text"
-    )
-    return _extrair_json(texto_final)
+    return _extrair_tool_input(resposta, "registrar_sintese")
 
 
 def gerar_relatorio_completo(cliente, concorrentes) -> tuple[dict, dict, dict]:
