@@ -217,7 +217,50 @@ p.legenda {
 }
 
 .frente-corpo h3 { margin-top: 0; }
-.frente-corpo p { margin: 0; }
+.frente-corpo p { margin: 0; color: var(--cinza-claro); }
+
+/* ---------- Destaques por frente (badges estilo "stat tile") ----------
+   Adicionado em 12/10/2026 (pedido de Emerson, relatório mais visual tipo
+   Reportei): cada frente agora pode ter 2-4 badges com o número/status
+   mais importante em destaque ANTES do parágrafo corrido — quebra a
+   sensação de parede de texto já na primeira olhada, sem remover nada do
+   texto (continua logo abaixo, para quem quer o detalhe). Os badges vêm
+   da própria IA resumindo o que ela escreveu no texto (ver generator.py,
+   campo "destaques") — nunca um número calculado/parseado aqui no CSS ou
+   no Python, pra não repetir o bug do parser de nota que inventava barra
+   errada (ver pdf_builder._parsear_nota_de_5). */
+.destaques {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3cm;
+  margin-bottom: 0.3cm;
+}
+
+.destaque-badge {
+  display: flex;
+  flex-direction: column;
+  gap: 0.03cm;
+  background: var(--creme);
+  border: 1px solid var(--creme-escuro);
+  border-left: 0.1cm solid var(--marca-vermelho);
+  border-radius: 0.12cm;
+  padding: 0.18cm 0.35cm;
+  min-width: 2.6cm;
+}
+
+.destaque-valor {
+  font-size: 12.5pt;
+  font-weight: 700;
+  color: var(--marca-cinza);
+  line-height: 1.15;
+}
+
+.destaque-rotulo {
+  font-size: 7.5pt;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--cinza-claro);
+}
 
 /* ---------- Tabelas ---------- */
 

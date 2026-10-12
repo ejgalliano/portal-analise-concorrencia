@@ -375,6 +375,36 @@ def _schema_frente() -> dict:
                 "type": "string",
                 "description": "Parágrafo denso e factual, terminando com a citação de fonte(s) entre colchetes.",
             },
+            # Adicionado em 12/10/2026 (pedido de Emerson, depois de ver o
+            # relatório de verdade: "só tem texto, não tem nada parecido com
+            # relatório do Reportei"). Não é um dado novo pesquisado — é o
+            # PRÓPRIO modelo puxando 2-4 números/status principais que ELE
+            # MESMO já escreveu no "texto" desta frente, pra virar badge/card
+            # no PDF (ver relatorio.html). Fica de fora do "required" da
+            # frente de propósito: nem toda frente tem algo que vale a pena
+            # destacar como badge (ex.: "não encontrado" em tudo), e forçar
+            # a tool a inventar destaque nesses casos seria pior que não ter.
+            "destaques": {
+                "type": "array",
+                "description": (
+                    "2 a 4 destaques curtos (a métrica ou status mais importante "
+                    "encontrado nesta frente), cada um como rótulo + valor — ex.: "
+                    "{\"rotulo\": \"Seguidores\", \"valor\": \"12.000\"} ou "
+                    "{\"rotulo\": \"CNPJ\", \"valor\": \"Não confirmado\"}. Use só "
+                    "números/status que você já escreveu no texto desta mesma "
+                    "frente — nunca invente um destaque com dado que não está no "
+                    "texto. Se não houver nada que valha a pena destacar nesta "
+                    "frente, devolva lista vazia em vez de forçar um destaque."
+                ),
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "rotulo": {"type": "string", "description": "Rótulo curto, 1-3 palavras (ex.: 'Seguidores', 'Status do CNPJ')."},
+                        "valor": {"type": "string", "description": "Valor curto correspondente (ex.: '12.000', 'Confirmado', 'Não encontrado')."},
+                    },
+                    "required": ["rotulo", "valor"],
+                },
+            },
             "fontes": {
                 "type": "array",
                 "items": {
@@ -621,9 +651,19 @@ def pesquisar_empresa(empresa: Empresa, papel: str, uso_acumulado: dict | None =
         "Pesquise as 13 frentes abaixo. Cada campo \"texto\" deve ser um "
         "parágrafo denso e factual (no estilo: 'Instagram: 890 seguidores, "
         "3 posts/30 dias...'), terminando com a citação de fonte(s) entre "
-        "colchetes. Quando terminar toda a pesquisa, chame a tool "
-        "registrar_pesquisa_empresa com os 13 resultados de uma vez — não "
-        "responda em texto livre. Frentes:\n\n" + _prompt_frentes()
+        "colchetes. Em cada frente, preencha também \"destaques\" com 2 a 4 "
+        "badges curtos (rótulo + valor) repetindo o número/status mais "
+        "importante que você mesmo acabou de escrever em \"texto\" — nunca um "
+        "dado novo, só o resumo visual do que já está no parágrafo (ex.: "
+        "\"texto\" diz 'Instagram com 890 seguidores e 3 posts/30 dias, página "
+        "do Facebook sem posts recentes [fonte]' → destaques: [{rotulo: "
+        "'Seguidores', valor: '890'}, {rotulo: 'Posts/30 dias', valor: '3'}]). "
+        "Quando não houver nada que valha destacar na frente (ex.: tudo não "
+        "encontrado/não acessível), devolva destaques como lista vazia — "
+        "nunca force um destaque sem dado real por trás. Quando terminar toda "
+        "a pesquisa, chame a tool registrar_pesquisa_empresa com os 13 "
+        "resultados de uma vez — não responda em texto livre. Frentes:\n\n"
+        + _prompt_frentes()
     )
 
     return _chamar_ate_tool(
@@ -647,8 +687,11 @@ def pesquisar_empresa(empresa: Empresa, papel: str, uso_acumulado: dict | None =
         # custo até estourar o teto. 24000 dá folga real; max_tokens é só o
         # teto, o custo real é pelo que o modelo efetivamente gerar — mas
         # evitar o corte evita a retentativa cara, então isso tende a
-        # BAIXAR o custo médio por pedido, não subir.
-        max_tokens=24000,
+        # BAIXAR o custo médio por pedido, não subir. Subido pra 28000 em
+        # 12/10/2026 ao adicionar o campo "destaques" por frente (pedido de
+        # Emerson, relatório mais visual estilo Reportei) — mais um pouco de
+        # JSON por frente, folga extra pra não voltar a cortar.
+        max_tokens=28000,
         model=settings.anthropic_model,
         uso_acumulado=uso_acumulado,
         validar=_validar_pesquisa_empresa,

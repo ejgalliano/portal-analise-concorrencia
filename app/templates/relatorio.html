@@ -56,6 +56,17 @@
         <div class="frente-numero">{{ f.numero }}</div>
         <div class="frente-corpo">
           <h3>{{ f.titulo }}</h3>
+          {% set destaques = entrada.get("destaques") or [] %}
+          {% if destaques %}
+          <div class="destaques">
+            {% for d in destaques %}
+            <div class="destaque-badge">
+              <span class="destaque-valor">{{ d.get("valor", "—") }}</span>
+              <span class="destaque-rotulo">{{ d.get("rotulo", "") }}</span>
+            </div>
+            {% endfor %}
+          </div>
+          {% endif %}
           <p>{{ entrada.get("texto", "Não pesquisado.") }}</p>
         </div>
       </div>
