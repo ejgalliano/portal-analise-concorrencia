@@ -103,19 +103,26 @@ def _extrair_json(texto: str) -> dict:
     return json.loads(bloco.group(0))
 
 
+def _buscar_tool_use(resposta, nome_tool: str):
+    for bloco in resposta.content:
+        if getattr(bloco, "type", None) == "tool_use" and bloco.name == nome_tool:
+            return bloco
+    return None
+
+
 def _extrair_tool_input(resposta, nome_tool: str) -> dict:
     """Pega o input (já validado contra o schema pela própria API — sem
     risco de JSON malformado) da chamada à tool de saída estruturada
     `nome_tool`. Se o modelo não chamou a tool (respondeu em texto livre
-    por algum motivo), cai para _extrair_json no texto como reserva."""
-    for bloco in resposta.content:
-        if getattr(bloco, "type", None) == "tool_use" and bloco.name == nome_tool:
-            return bloco.input
+    por algum motivo), cai para _extrair_json no texto como reserva — isto
+    só é chamado depois que _chamar_ate_tool já tentou insistir e mesmo
+    assim não conseguiu, então aqui é realmente o último recurso."""
+    bloco_tool = _buscar_tool_use(resposta, nome_tool)
+    if bloco_tool is not None:
+        return bloco_tool.input
     texto_final = "".join(
         bloco.text for bloco in resposta.content if getattr(bloco, "type", None) == "text"
     )
-    # Diagnóstico: a tool esperada não veio — registra o motivo da parada e
-    # os tipos de bloco devolvidos, para não ficar no escuro na próxima falha.
     tipos_blocos = [getattr(b, "type", "?") for b in resposta.content]
     log.warning(
         "Tool '%s' não foi chamada. stop_reason=%s, tipos_de_bloco=%s, trecho_do_texto=%r",
@@ -124,6 +131,58 @@ def _extrair_tool_input(resposta, nome_tool: str) -> dict:
     if not texto_final:
         raise ValueError(f"O modelo não chamou a tool '{nome_tool}' nem devolveu texto para extrair JSON.")
     return _extrair_json(texto_final)
+
+
+def _chamar_ate_tool(
+    *, system: str, mensagens: list, tools: list, nome_tool: str, max_tokens: str | int,
+    model: str, uso_acumulado: dict | None, max_tentativas: int = 3,
+) -> dict:
+    """Chama a API e garante (dentro do razoável) que a tool `nome_tool` seja
+    chamada antes de desistir — sem jogar fora pesquisa já paga.
+
+    A Anthropic não garante que o modelo sempre termine chamando uma tool
+    específica (ver docs de tool_choice): às vezes ele responde só em
+    texto. Em vez de falhar o pedido inteiro nessa hora (como acontecia
+    antes — jogando fora toda a pesquisa já feita e seu custo), insiste
+    numa nova mensagem na MESMA conversa, reaproveitando o que já foi
+    apurado, em vez de recomeçar a pesquisa do zero. Cada tentativa extra
+    custa só uma mensagem curta de correção, não uma nova pesquisa."""
+    client = _get_client()
+    historico = list(mensagens)
+
+    for tentativa in range(1, max_tentativas + 1):
+        resposta = client.messages.create(
+            model=model, max_tokens=max_tokens, system=system, messages=historico, tools=tools,
+        )
+        if uso_acumulado is not None:
+            _somar_uso(uso_acumulado, resposta)
+
+        bloco_tool = _buscar_tool_use(resposta, nome_tool)
+        if bloco_tool is not None:
+            return bloco_tool.input
+
+        log.warning(
+            "Tentativa %d/%d: tool '%s' não foi chamada (stop_reason=%s). Insistindo na mesma conversa.",
+            tentativa, max_tentativas, nome_tool, resposta.stop_reason,
+        )
+        if tentativa == max_tentativas:
+            break
+
+        historico = historico + [
+            {"role": "assistant", "content": resposta.content},
+            {
+                "role": "user",
+                "content": (
+                    f"Você ainda não chamou a tool '{nome_tool}'. Pare de responder em texto "
+                    f"livre e chame agora a tool '{nome_tool}' com os resultados que você já "
+                    "apurou (não repita buscas que já fez, só registre o que já tem)."
+                ),
+            },
+        ]
+
+    # Esgotou as tentativas de insistir — último recurso, tenta extrair JSON
+    # do texto da última resposta antes de desistir de vez.
+    return _extrair_tool_input(resposta, nome_tool)
 
 
 def _schema_frente() -> dict:
@@ -351,26 +410,23 @@ def pesquisar_empresa(empresa: Empresa, papel: str, uso_acumulado: dict | None =
         "responda em texto livre. Frentes:\n\n" + _prompt_frentes()
     )
 
-    resposta = _get_client().messages.create(
-        model=settings.anthropic_model,
+    return _chamar_ate_tool(
+        system=system,
+        mensagens=[{"role": "user", "content": prompt}],
+        tools=[
+            {"type": "web_search_20250305", "name": "web_search", "max_uses": 40},
+            _tool_registrar_pesquisa(),
+        ],
+        nome_tool="registrar_pesquisa_empresa",
         # 13 frentes com parágrafo denso + fontes cada uma é bastante
         # conteúdo de saída — 8000 tokens era curto e deixava a resposta
         # cortada antes de a tool ser chamada (sem tool_use, sem JSON, erro
         # de parsing). 16000 dá folga sem custo extra: max_tokens é só o
         # teto, o custo real é pelo que o modelo efetivamente gerar.
         max_tokens=16000,
-        system=system,
-        messages=[{"role": "user", "content": prompt}],
-        tools=[
-            {"type": "web_search_20250305", "name": "web_search", "max_uses": 40},
-            _tool_registrar_pesquisa(),
-        ],
+        model=settings.anthropic_model,
+        uso_acumulado=uso_acumulado,
     )
-
-    if uso_acumulado is not None:
-        _somar_uso(uso_acumulado, resposta)
-
-    return _extrair_tool_input(resposta, "registrar_pesquisa_empresa")
 
 
 def sintetizar_secoes_gerais(cliente_nome: str, resultados: dict[str, dict], uso_acumulado: dict | None = None) -> dict:
@@ -407,18 +463,15 @@ def sintetizar_secoes_gerais(cliente_nome: str, resultados: dict[str, dict], uso
         "uma empresa de uma linha do mapa de oportunidade."
     )
 
-    resposta = _get_client().messages.create(
-        model=settings.anthropic_model,
-        max_tokens=12000,
+    return _chamar_ate_tool(
         system=system,
-        messages=[{"role": "user", "content": prompt}],
+        mensagens=[{"role": "user", "content": prompt}],
         tools=[_TOOL_REGISTRAR_SINTESE],
+        nome_tool="registrar_sintese",
+        max_tokens=12000,
+        model=settings.anthropic_model,
+        uso_acumulado=uso_acumulado,
     )
-
-    if uso_acumulado is not None:
-        _somar_uso(uso_acumulado, resposta)
-
-    return _extrair_tool_input(resposta, "registrar_sintese")
 
 
 def gerar_relatorio_completo(cliente, concorrentes) -> tuple[dict, dict, dict]:
