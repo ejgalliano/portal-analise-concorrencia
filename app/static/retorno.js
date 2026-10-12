@@ -21,9 +21,61 @@ const mensagensStatus = {
   erro: "Ocorreu um erro ao gerar o relatório. Nossa equipe foi notificada e vai te retornar.",
 };
 
-function mostrarStatus(texto) {
+// Etapas visíveis para o cliente — intencionalmente mais simples que os
+// status internos do pedido (aguardando_pagamento/pago/recebido viram só
+// "Pagamento confirmado" aqui, não precisam de uma etapa própria).
+const ETAPAS = [
+  { chave: "pagamento", rotulo: "Pagamento confirmado" },
+  { chave: "pesquisando", rotulo: "Pesquisando empresa e concorrentes" },
+  { chave: "verificando", rotulo: "Verificando o conteúdo" },
+  { chave: "gerando_documento", rotulo: "Montando o PDF" },
+  { chave: "pronto", rotulo: "Relatório pronto" },
+];
+
+const INDICE_ETAPA = {
+  aguardando_pagamento: 0,
+  pago: 0,
+  recebido: 0,
+  pesquisando: 1,
+  verificando: 2,
+  gerando_documento: 3,
+  pronto: 4,
+};
+
+function montarEsqueletoStatus() {
+  statusBox.innerHTML = `
+    <div class="status-texto" id="status-texto"></div>
+    <div class="barra-progresso"><div class="barra-progresso-preenchimento"></div></div>
+    <ul class="etapas" id="lista-etapas"></ul>
+  `;
+}
+
+function mostrarStatus(texto, statusAtual) {
   statusBox.hidden = false;
-  statusBox.textContent = texto;
+  statusBox.classList.toggle("status-erro", statusAtual === "erro");
+
+  if (!document.getElementById("status-texto")) {
+    montarEsqueletoStatus();
+  }
+
+  document.getElementById("status-texto").textContent = texto;
+
+  const indiceAtual = statusAtual in INDICE_ETAPA ? INDICE_ETAPA[statusAtual] : -1;
+  const lista = document.getElementById("lista-etapas");
+  lista.innerHTML = ETAPAS.map((etapa, i) => {
+    let classe = "etapa";
+    let marca = "";
+    if (statusAtual === "erro" && i === indiceAtual) {
+      classe += " erro";
+      marca = "!";
+    } else if (i < indiceAtual || statusAtual === "pronto" && i <= indiceAtual) {
+      classe += " concluida";
+      marca = "✓";
+    } else if (i === indiceAtual) {
+      classe += " atual";
+    }
+    return `<li class="${classe}"><span class="etapa-marca">${marca}</span><span>${etapa.rotulo}</span></li>`;
+  }).join("");
 }
 
 function mostrarDownload(pedido) {
@@ -45,7 +97,7 @@ async function consultarStatus(pedidoId) {
   }
   const pedido = await resp.json();
 
-  mostrarStatus(mensagensStatus[pedido.status] || pedido.status);
+  mostrarStatus(mensagensStatus[pedido.status] || pedido.status, pedido.status);
 
   if (pedido.status === "pronto") {
     mostrarDownload(pedido);
@@ -57,9 +109,17 @@ async function consultarStatus(pedidoId) {
   }
 }
 
+const STATUS_INICIAL_POR_RESULTADO = {
+  sucesso: "pago",
+  pendente: "aguardando_pagamento",
+};
+
 if (window.__pedidoId) {
-  mostrarStatus(mensagensIniciais[window.__resultado] || "Consultando status do pedido...");
   if (window.__resultado !== "falha") {
+    mostrarStatus(
+      mensagensIniciais[window.__resultado] || "Consultando status do pedido...",
+      STATUS_INICIAL_POR_RESULTADO[window.__resultado] || "aguardando_pagamento",
+    );
     consultarStatus(window.__pedidoId);
   }
 }

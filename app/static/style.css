@@ -131,12 +131,122 @@ input[type="email"] {
 
 .status-pedido {
   margin-top: 24px;
-  padding: 16px;
-  border-radius: 8px;
+  padding: 20px;
+  border-radius: 10px;
   background: #eef2f6;
   color: var(--azul);
   font-size: 0.95rem;
+  text-align: left;
 }
+
+.status-pedido.status-erro {
+  background: #fdecec;
+  color: #8a2c22;
+}
+
+.status-texto {
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
+/* Barra indeterminada — não sabemos quanto falta, só que está rodando. */
+.barra-progresso {
+  position: relative;
+  height: 8px;
+  border-radius: 999px;
+  background: #d7e0ea;
+  overflow: hidden;
+  margin-bottom: 18px;
+}
+
+.barra-progresso-preenchimento {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 40%;
+  border-radius: 999px;
+  background: var(--azul-claro);
+  animation: deslizar 1.4s ease-in-out infinite;
+}
+
+.status-erro .barra-progresso-preenchimento { animation: none; width: 0; }
+
+@keyframes deslizar {
+  0%   { left: -40%; }
+  100% { left: 100%; }
+}
+
+.etapas {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.etapa {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.88rem;
+  color: #7c8a9a;
+}
+
+.etapa-marca {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid #c3cedb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  background: #fff;
+}
+
+.etapa.concluida {
+  color: var(--azul);
+}
+
+.etapa.concluida .etapa-marca {
+  background: var(--azul-claro);
+  border-color: var(--azul-claro);
+  color: #fff;
+}
+
+.etapa.atual {
+  color: var(--azul);
+  font-weight: 600;
+}
+
+.etapa.atual .etapa-marca {
+  border-color: var(--azul-claro);
+  position: relative;
+}
+
+.etapa.atual .etapa-marca::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 2px solid var(--azul-claro);
+  border-top-color: transparent;
+  animation: girar 0.9s linear infinite;
+}
+
+@keyframes girar {
+  to { transform: rotate(360deg); }
+}
+
+.etapa.erro .etapa-marca {
+  background: #c0392b;
+  border-color: #c0392b;
+  color: #fff;
+}
+.etapa.erro { color: #8a2c22; }
 
 .download-pedido {
   margin-top: 24px;
