@@ -39,7 +39,12 @@ from fastapi.templating import Jinja2Templates
 
 from .config import settings
 from .email_sender import enviar_relatorio_por_email
-from .generator import gerar_relatorio_completo, gerar_relatorio_completo_simulado
+from .generator import (
+    gerar_relatorio_completo,
+    gerar_relatorio_completo_simulado,
+    _validar_pesquisa_empresa,
+    _validar_sintese,
+)
 from .linter import checar_relatorio
 from .models import Pedido, PedidoCreate
 from .payment import consultar_pagamento, criar_preferencia
@@ -267,6 +272,20 @@ def processar_pedido(pedido_id: str) -> None:
             for chave, entrada in dados.get("frentes", {}).items():
                 textos_para_checar[f"{nome_empresa} — frente {chave}"] = entrada.get("texto", "")
         avisos = checar_relatorio(textos_para_checar)
+
+        # Checagem de completude — além do linter de linguagem, confere que
+        # nenhuma frente ou seção geral ficou vazia mesmo depois da
+        # correção automática em _chamar_ate_tool (ver generator.py). Isso
+        # já evita a maioria dos casos, mas se mesmo assim sobrar algo
+        # incompleto (teto de buscas/tokens esgotado nas duas tentativas),
+        # o pedido ainda é entregue — incompleto é melhor que erro, já que
+        # o cliente já pagou — mas fica visível aqui para revisão manual.
+        for nome_empresa, dados in resultados.items():
+            for problema in _validar_pesquisa_empresa(dados.get("frentes", {})):
+                avisos.append(f"[{nome_empresa}] {problema}")
+        for problema in _validar_sintese(secoes_gerais):
+            avisos.append(f"[seções gerais] {problema}")
+
         pedido.avisos_linter = avisos
         if avisos:
             log.warning("Pedido %s tem %d avisos do linter — revisão manual recomendada antes de reenviar.", pedido_id, len(avisos))

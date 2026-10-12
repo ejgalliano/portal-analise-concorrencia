@@ -137,9 +137,9 @@
   <section class="secao quebra-antes">
     <h2>Mapa de oportunidade comparativo</h2>
     <p class="legenda">
-      <span class="badge badge-ok">✓</span> confirmado como presente ·
-      <span class="badge badge-off">—</span> confirmado como ausente ·
-      <span class="badge badge-nd">n/d</span> não determinável nesta consulta
+      <span class="badge badge-ok">Sim</span> confirmado como presente ·
+      <span class="badge badge-off">Não</span> confirmado como ausente ·
+      <span class="badge badge-nd">N/D</span> não determinável nesta consulta
     </p>
     {% if secoes.mapa_oportunidade_comparativo %}
     <table>
@@ -158,9 +158,9 @@
           {% for nome in nomes_empresas %}
           {% set valor = item.empresas.get(nome, "n/d") %}
           <td class="col-centro">
-            {% if valor == "✓" %}<span class="badge badge-ok">✓</span>
-            {% elif valor == "—" %}<span class="badge badge-off">—</span>
-            {% else %}<span class="badge badge-nd">n/d</span>{% endif %}
+            {% if valor == "✓" %}<span class="badge badge-ok">Sim</span>
+            {% elif valor == "—" %}<span class="badge badge-off">Não</span>
+            {% else %}<span class="badge badge-nd">N/D</span>{% endif %}
           </td>
           {% endfor %}
         </tr>

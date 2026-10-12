@@ -172,6 +172,7 @@ def _checar_teto_de_gasto(uso_acumulado: dict | None, model: str) -> None:
 def _chamar_ate_tool(
     *, system: str, mensagens: list, tools: list, nome_tool: str, max_tokens: str | int,
     model: str, uso_acumulado: dict | None, max_tentativas: int = 2,
+    validar=None,
 ) -> dict:
     """Chama a API e garante (dentro do razoável) que a tool `nome_tool` seja
     chamada antes de desistir — sem jogar fora pesquisa já paga.
@@ -192,7 +193,21 @@ def _chamar_ate_tool(
     seja maior) — depois disso, desiste e tenta extrair o que der. Além
     disso, o custo acumulado é checado depois de CADA chamada
     (_checar_teto_de_gasto), então mesmo esse único retry é interrompido
-    na hora se passar do teto."""
+    na hora se passar do teto.
+
+    `validar`, se passado, é uma função (dict) -> list[str] que recebe o
+    input já devolvido pela tool e retorna uma lista de problemas
+    encontrados (vazia = passou limpo). Existe porque a API só garante
+    que os campos "required" do schema ESTEJAM PRESENTES, nunca que
+    tenham conteúdo de verdade (nada impede o modelo de chamar a tool
+    com strings/listas vazias e ainda assim passar na validação de
+    schema) — foi exatamente isso que aconteceu num teste real em
+    12/10/2026: a tool de síntese foi chamada corretamente, sem nenhum
+    aviso, mas com todas as seções vazias, e o PDF saiu "pronto" sem
+    conteúdo nenhum de comparativo. Se `validar` aponta problemas, é
+    tratado como se a tool não tivesse sido chamada: insiste numa nova
+    mensagem, descrevendo exatamente o que falta, reaproveitando a
+    pesquisa já feita (sem precisar repetir buscas)."""
     client = _get_client()
     historico = list(mensagens)
     pause_turn_ja_retomado = False
@@ -207,7 +222,35 @@ def _chamar_ate_tool(
 
         bloco_tool = _buscar_tool_use(resposta, nome_tool)
         if bloco_tool is not None:
-            return bloco_tool.input
+            problemas = validar(bloco_tool.input) if validar is not None else []
+            if not problemas:
+                return bloco_tool.input
+
+            log.warning(
+                "Tentativa %d/%d: tool '%s' foi chamada mas o conteúdo não passou na "
+                "validação: %s",
+                tentativa, max_tentativas, nome_tool, "; ".join(problemas),
+            )
+            if tentativa == max_tentativas:
+                # Esgotou as tentativas — entrega o que tem (incompleto é
+                # melhor que erro, mas fica registrado em log para auditoria).
+                return bloco_tool.input
+
+            historico = historico + [
+                {"role": "assistant", "content": resposta.content},
+                {
+                    "role": "user",
+                    "content": (
+                        f"Sua chamada à tool '{nome_tool}' foi registrada, mas está "
+                        f"incompleta ou vazia nos seguintes pontos: {'; '.join(problemas)}. "
+                        "Chame a tool novamente, agora com o conteúdo completo para "
+                        "esses pontos — reaproveite a pesquisa que você já fez, só "
+                        "pesquise de novo o que for estritamente necessário para "
+                        "preencher o que falta."
+                    ),
+                },
+            ]
+            continue
 
         log.warning(
             "Tentativa %d/%d: tool '%s' não foi chamada (stop_reason=%s).",
@@ -414,6 +457,40 @@ _TOOL_REGISTRAR_SINTESE = {
 }
 
 
+def _validar_pesquisa_empresa(resultado: dict) -> list[str]:
+    """Confere que as 13 frentes vieram com texto de verdade — não só a
+    chave presente. Sem isso, um frente que ficou sem orçamento de busca
+    (teto de _MAX_BUSCAS_POR_CHAMADA) some silenciosamente do relatório
+    em vez de aparecer como 'não pesquisado', e ninguém percebe."""
+    problemas = []
+    for f in FRENTES:
+        chave = str(f["numero"])
+        entrada = resultado.get(chave)
+        if not isinstance(entrada, dict) or not (entrada.get("texto") or "").strip():
+            problemas.append(f"frente {chave} ({f['titulo']}) sem texto")
+    return problemas
+
+
+def _validar_sintese(resultado: dict) -> list[str]:
+    """Confere que as seções gerais vieram com conteúdo de verdade — a API
+    só garante que os campos 'required' do schema existam, nunca que
+    tenham texto/itens reais (uma string vazia ou lista vazia passa limpo
+    no schema). Foi assim que um relatório real saiu com todas as seções
+    comparativas em branco sem nenhum erro ou aviso, em 12/10/2026."""
+    problemas = []
+    for campo in ("sumario_executivo", "metodologia_e_fontes", "sobre_atualizacoes"):
+        if not (resultado.get(campo) or "").strip():
+            problemas.append(f"'{campo}' vazio")
+    for campo in (
+        "comparativo_consolidado", "painel_reputacao_sinais_br",
+        "painel_atividade_marketing_digital", "mapa_oportunidade_comparativo",
+        "fontes_citadas",
+    ):
+        if not resultado.get(campo):
+            problemas.append(f"'{campo}' vazio")
+    return problemas
+
+
 def _prompt_frentes() -> str:
     linhas = []
     for f in FRENTES:
@@ -491,6 +568,7 @@ def pesquisar_empresa(empresa: Empresa, papel: str, uso_acumulado: dict | None =
         max_tokens=16000,
         model=settings.anthropic_model,
         uso_acumulado=uso_acumulado,
+        validar=_validar_pesquisa_empresa,
     )
 
 
@@ -536,6 +614,7 @@ def sintetizar_secoes_gerais(cliente_nome: str, resultados: dict[str, dict], uso
         max_tokens=12000,
         model=settings.anthropic_model,
         uso_acumulado=uso_acumulado,
+        validar=_validar_sintese,
     )
 
 
