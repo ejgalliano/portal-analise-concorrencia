@@ -508,3 +508,70 @@ def gerar_relatorio_completo(cliente, concorrentes) -> tuple[dict, dict, dict]:
     secoes_gerais = sintetizar_secoes_gerais(cliente.nome, resultados, uso)
     uso["custo_estimado_usd"] = calcular_custo_estimado_usd(uso, settings.anthropic_model)
     return resultados, secoes_gerais, uso
+
+
+def _frente_simulada(numero: int, empresa_nome: str) -> dict:
+    return {
+        "texto": (
+            f"Dado simulado de teste para a frente {numero} de {empresa_nome} — "
+            "este texto é fictício, gerado sem chamar a API da Anthropic, só para "
+            "validar o pipeline (linter, PDF, download) sem custo. Inclui uma "
+            '"citação entre aspas" de propósito, para continuar cobrindo o caso '
+            "que já quebrou o parsing antigo. [Fonte Simulada, 12/10/2026]"
+        ),
+        "fontes": [{"nome": "Fonte Simulada", "url": "https://exemplo.com", "data": "12/10/2026"}],
+    }
+
+
+def gerar_relatorio_completo_simulado(cliente, concorrentes) -> tuple[dict, dict, dict]:
+    """Mesma assinatura/formato de retorno de gerar_relatorio_completo(), mas
+    SEM nenhuma chamada à API da Anthropic — dados fictícios fixos.
+
+    Existe só para testar o resto do pipeline (status/progresso, linter,
+    montagem do PDF, download) de graça, de propósito, quantas vezes
+    precisar, sem gastar tokens. Ativado via settings.simular_ia — ver
+    config.py e o uso em main.py/processar_pedido.
+
+    As pausas (time.sleep) são só para a tela de progresso ter algo visível
+    para mostrar em cada etapa, como aconteceria numa pesquisa de verdade."""
+    import time
+
+    resultados: dict[str, dict] = {}
+
+    empresas = [(cliente, "cliente")] + [(c, "concorrente") for c in concorrentes]
+    for empresa, papel in empresas:
+        time.sleep(2)
+        resultados[empresa.nome] = {
+            "papel": papel,
+            "frentes": {str(f["numero"]): _frente_simulada(f["numero"], empresa.nome) for f in FRENTES},
+        }
+
+    time.sleep(1)
+    secoes_gerais = {
+        "sumario_executivo": "Resumo executivo simulado — sem chamada real à IA, só para teste de pipeline.",
+        "metodologia_e_fontes": "Metodologia simulada para fins de teste.",
+        "comparativo_consolidado": [
+            {
+                "frente": FRENTES[0]["titulo"],
+                "linhas": [{"empresa": nome, "resumo": "Resumo factual simulado."} for nome in resultados],
+            },
+        ],
+        "painel_reputacao_sinais_br": [
+            {"empresa": nome, "colunas": {"reclame_aqui": "4,0", "google_meu_negocio": "4,5 (50)", "mencoes": "não encontrada"}}
+            for nome in resultados
+        ],
+        "painel_atividade_marketing_digital": [
+            {"empresa": nome, "colunas": {"seguidores_instagram": "1.000", "posts_30_dias": "5", "anuncios_ativos": "1"}}
+            for nome in resultados
+        ],
+        "mapa_oportunidade_comparativo": [
+            {"canal": "WhatsApp", "empresas": {nome: "✓" for nome in resultados}},
+        ],
+        "fontes_citadas": [{"nome": "Fonte Simulada", "url": "https://exemplo.com", "data": "12/10/2026"}],
+        "sobre_atualizacoes": "Retrato datado simulado.",
+    }
+
+    uso = _uso_vazio()
+    uso["custo_estimado_usd"] = 0.0
+    uso["simulado"] = True
+    return resultados, secoes_gerais, uso

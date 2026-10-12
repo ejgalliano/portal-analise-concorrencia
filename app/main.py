@@ -39,7 +39,7 @@ from fastapi.templating import Jinja2Templates
 
 from .config import settings
 from .email_sender import enviar_relatorio_por_email
-from .generator import gerar_relatorio_completo
+from .generator import gerar_relatorio_completo, gerar_relatorio_completo_simulado
 from .linter import checar_relatorio
 from .models import Pedido, PedidoCreate
 from .payment import consultar_pagamento, criar_preferencia
@@ -245,7 +245,11 @@ def processar_pedido(pedido_id: str) -> None:
         pedido.status = "pesquisando"
         storage.salvar(pedido)
 
-        resultados, secoes_gerais, uso_ia = gerar_relatorio_completo(pedido.cliente, pedido.concorrentes)
+        if settings.simular_ia:
+            log.info("Pedido %s — modo SIMULADO ligado (SIMULAR_IA=true): nenhuma chamada à Anthropic será feita, custo zero.", pedido_id)
+            resultados, secoes_gerais, uso_ia = gerar_relatorio_completo_simulado(pedido.cliente, pedido.concorrentes)
+        else:
+            resultados, secoes_gerais, uso_ia = gerar_relatorio_completo(pedido.cliente, pedido.concorrentes)
         pedido.uso_ia = uso_ia
         custo = uso_ia.get("custo_estimado_usd")
         log.info(

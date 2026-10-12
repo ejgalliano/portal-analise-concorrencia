@@ -29,12 +29,20 @@ class Settings(BaseSettings):
     mercadopago_access_token: str = ""
     preco_relatorio_centavos: int = 1990
 
-    # Modo de teste: libera POST /api/pedidos/teste, que pula o pagamento e
-    # roda o resto do pipeline de verdade (pesquisa real, PDF real).
+    # Modo de teste: libera POST /api/pedidos/teste, que pula o pagamento.
     # Deixe DESLIGADO (False) assim que a integração com o Mercado Pago
     # estiver funcionando — é um atalho de validação, não um recurso para
     # produção.
     permitir_pedido_teste: bool = False
+
+    # Modo simulado: quando ligado, o pedido de teste NÃO chama a API da
+    # Anthropic — usa dados fictícios prontos (mesmo formato que a IA real
+    # devolveria) e segue o resto do pipeline de verdade (linter, PDF,
+    # download, tela de progresso). Custo: US$ 0,00. Serve pra testar
+    # interface/fluxo/PDF à vontade sem gastar tokens. Ligue
+    # SIMULAR_IA=true no Render para usar; desligue quando quiser validar
+    # a pesquisa real de verdade (e aí sim vai custar tokens de propósito).
+    simular_ia: bool = False
 
 
 settings = Settings()
