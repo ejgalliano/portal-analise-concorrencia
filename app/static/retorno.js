@@ -58,6 +58,7 @@ let ultimaEtapaConhecida = 0;
 function mostrarStatus(texto, statusAtual) {
   statusBox.hidden = false;
   statusBox.classList.toggle("status-erro", statusAtual === "erro");
+  statusBox.classList.toggle("status-pronto", statusAtual === "pronto");
 
   if (!document.getElementById("status-texto")) {
     montarEsqueletoStatus();

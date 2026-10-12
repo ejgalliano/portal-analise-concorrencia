@@ -172,6 +172,9 @@ input[type="email"] {
 
 .status-erro .barra-progresso-preenchimento { animation: none; width: 0; }
 
+/* Terminou com sucesso: barra para de deslizar e fica cheia, não "rodando". */
+.status-pronto .barra-progresso-preenchimento { animation: none; width: 100%; }
+
 @keyframes deslizar {
   0%   { left: -40%; }
   100% { left: 100%; }
