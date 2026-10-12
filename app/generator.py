@@ -236,9 +236,21 @@ def _chamar_ate_tool(
 
     while chamadas_feitas < limite_chamadas:
         chamadas_feitas += 1
-        resposta = client.messages.create(
+        # Achado em 12/10/2026 (pedido 45a5258c): depois de subir max_tokens
+        # de pesquisar_empresa pra 24000, o SDK da Anthropic passou a
+        # recusar a chamada na hora (erro "Streaming is required for
+        # operations that may take longer than 10 minutes" — ver
+        # platform.claude.com/docs/en/cli-sdks-libraries/sdks/python#long-requests),
+        # sem nem chegar a gastar token (a checagem é local, antes de
+        # mandar a requisição). O SDK calcula que, no pior caso (modelo
+        # usando o max_tokens inteiro), passaria de 10 minutos sem stream.
+        # Usar .stream(...) em vez de .create(...) resolve e tem o mesmo
+        # resultado final (get_final_message() devolve o mesmo objeto de
+        # resposta) — só muda COMO os tokens chegam, não o que a gente lê.
+        with client.messages.stream(
             model=model, max_tokens=max_tokens, system=system, messages=historico, tools=tools,
-        )
+        ) as stream:
+            resposta = stream.get_final_message()
         if uso_acumulado is not None:
             _somar_uso(uso_acumulado, resposta)
         _checar_teto_de_gasto(uso_acumulado, model)
