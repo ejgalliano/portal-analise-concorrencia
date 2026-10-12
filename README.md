@@ -51,8 +51,12 @@ dados reais da NBG Telecom), e agora inclui cobrança real via Mercado Pago
   `app/docx_builder.py` continua no projeto como alternativa (gera a
   mesma estrutura em Word, editável, mas com design bem mais simples) —
   não é usado no fluxo padrão hoje.
-- **Envio por e-mail** (`app/email_sender.py`) — via Resend, com o PDF
-  em anexo.
+- **Entrega do relatório** — a forma principal é **download direto**
+  na própria página de retorno do pagamento (`/pedidos/{id}/download`),
+  protegido por um token aleatório gerado junto com o pedido. O envio
+  por e-mail (`app/email_sender.py`, via Resend, com o PDF em anexo) é
+  opcional: se `RESEND_API_KEY` não estiver configurada no `.env`, ele é
+  simplesmente ignorado — não bloqueia o pedido nem gera erro.
 
 Todo o pipeline foi testado localmente nesta sessão: página de vendas e
 formulário renderizam, validação de intake bloqueia os casos que devem
@@ -78,13 +82,18 @@ só em `app/static/relatorio.css` (variáveis no topo do arquivo) e
 
 ## O que ainda não está aqui (de propósito)
 
-- **WhatsApp** — a entrega é só por e-mail nesta fase, como combinado.
-  Quando a VMAI tiver acesso à API oficial do WhatsApp Business, entra
-  como uma segunda função em `email_sender.py` (ou um módulo
-  `whatsapp_sender.py` novo), chamada ao lado do e-mail.
+- **WhatsApp** — a entrega é por download e, opcionalmente, e-mail
+  nesta fase, como combinado. Quando a VMAI tiver acesso à API oficial
+  do WhatsApp Business, entra como uma segunda função em
+  `email_sender.py` (ou um módulo `whatsapp_sender.py` novo).
 - **Banco de dados** — os pedidos são salvos em arquivo JSON
-  (`orders/`). Funciona bem para o volume de um MVP concierge; trocar
-  por Postgres depois é uma mudança isolada em `app/storage.py`.
+  (`orders/`), e o PDF gerado fica no mesmo diretório. Funciona bem
+  para o volume de um MVP concierge, mas em hospedagens com disco
+  efêmero (ex. Render no plano free) esses arquivos somem quando o
+  serviço reinicia ou é atualizado — ver aviso na seção de hospedagem
+  abaixo. Trocar por Postgres + armazenamento de arquivo em nuvem
+  (S3, R2, etc.) depois é uma mudança isolada em `app/storage.py` e
+  `app/main.py`.
 - **Hospedagem definitiva** — ver sugestões mais abaixo; o que está
   aqui já roda em qualquer lugar que suporte Python/WeasyPrint.
 
@@ -144,7 +153,8 @@ ao importar `weasyprint`.
 cd portal-analise-concorrencia
 pip install -r requirements.txt
 cp .env.example .env
-# edite o .env com suas chaves (ANTHROPIC_API_KEY, RESEND_API_KEY, MERCADOPAGO_ACCESS_TOKEN)
+# edite o .env com suas chaves (ANTHROPIC_API_KEY e MERCADOPAGO_ACCESS_TOKEN
+# são obrigatórias; RESEND_API_KEY é opcional — ver tabela abaixo)
 uvicorn app.main:app --reload
 ```
 
@@ -156,10 +166,10 @@ Abra `http://localhost:8000` — a página de vendas. O formulário fica em
 | Variável | Para quê | Onde conseguir |
 |---|---|---|
 | `ANTHROPIC_API_KEY` | Pesquisa + redação do relatório | console.anthropic.com — precisa ter a ferramenta "Web search" habilitada |
-| `RESEND_API_KEY` | Envio do e-mail com o relatório | resend.com (tem plano gratuito para começar) |
-| `EMAIL_REMETENTE` | Endereço que aparece como remetente | precisa de um domínio verificado na Resend |
 | `MERCADOPAGO_ACCESS_TOKEN` | Cobrança do relatório | dashboard.mercadopago.com.br — use o token de teste (`TEST-...`) até a Etapa 6 do plano, depois troque para produção (`APP_USR-...`) |
 | `PRECO_RELATORIO_CENTAVOS` | Preço cobrado, em centavos | você mesmo decide — 1990 (R$ 19,90) é o valor padrão sugerido para a rodada de teste |
+| `RESEND_API_KEY` *(opcional)* | Envio do e-mail com o relatório, além do download | resend.com (tem plano gratuito para começar). Deixe vazio para desligar o e-mail — a entrega continua funcionando só por download. |
+| `EMAIL_REMETENTE` *(só se usar e-mail)* | Endereço que aparece como remetente | precisa de um domínio verificado na Resend |
 
 ## Custo por relatório (estimativa)
 

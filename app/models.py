@@ -79,6 +79,10 @@ class Pedido(BaseModel):
     payment_id: Optional[str] = None
     checkout_url: Optional[str] = None
 
+    # Token aleatório e imprevisível que autoriza o download do relatório —
+    # separado do id do pedido para não depender da previsibilidade do id.
+    download_token: str
+
     @staticmethod
     def novo(dados: PedidoCreate) -> "Pedido":
         return Pedido(
@@ -87,4 +91,5 @@ class Pedido(BaseModel):
             status="aguardando_pagamento",
             cliente=dados.cliente,
             concorrentes=dados.concorrentes,
+            download_token=uuid.uuid4().hex,
         )

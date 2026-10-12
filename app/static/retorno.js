@@ -2,10 +2,11 @@
 // window.__pedidoId e window.__resultado são definidos inline pelo template retorno.html.
 
 const statusBox = document.getElementById("status-pedido");
+const downloadBox = document.getElementById("download-pedido");
 
 const mensagensIniciais = {
-  sucesso: "Pagamento confirmado! Estamos preparando seu relatório — isso pode levar alguns minutos.",
-  pendente: "Recebemos seu pagamento, mas ele ainda está sendo processado (comum em boleto e alguns PIX). Assim que for confirmado, o relatório é gerado automaticamente.",
+  sucesso: "Pagamento confirmado! Estamos preparando seu relatório — isso pode levar alguns minutos. Não feche esta página, o relatório fica disponível para download aqui mesmo quando terminar.",
+  pendente: "Recebemos seu pagamento, mas ele ainda está sendo processado (comum em boleto e alguns PIX). Assim que for confirmado, o relatório é gerado automaticamente e aparece aqui para download.",
   falha: "O pagamento não foi concluído. Nenhuma cobrança foi feita — você pode tentar novamente quando quiser.",
 };
 
@@ -16,13 +17,23 @@ const mensagensStatus = {
   pesquisando: "Pesquisando sua empresa e seus concorrentes nas fontes públicas...",
   verificando: "Pesquisa concluída. Verificando o rigor do conteúdo antes de montar o documento...",
   gerando_documento: "Montando o documento final...",
-  pronto: null, // mensagem final é montada com o e-mail do cliente, abaixo
+  pronto: "Pronto! Seu relatório está disponível para download abaixo.",
   erro: "Ocorreu um erro ao gerar o relatório. Nossa equipe foi notificada e vai te retornar.",
 };
 
 function mostrarStatus(texto) {
   statusBox.hidden = false;
   statusBox.textContent = texto;
+}
+
+function mostrarDownload(pedido) {
+  if (!downloadBox) return;
+  const link = `/pedidos/${pedido.id}/download?token=${pedido.download_token}`;
+  downloadBox.hidden = false;
+  downloadBox.innerHTML = `
+    <a href="${link}" class="btn-primario btn-link" download>Baixar relatório (PDF)</a>
+    <p class="aviso-download">Guarde este link ou baixe agora — se você sair desta página sem salvar o PDF, pode não conseguir acessá-lo depois.</p>
+  `;
 }
 
 async function consultarStatus(pedidoId) {
@@ -34,12 +45,12 @@ async function consultarStatus(pedidoId) {
   }
   const pedido = await resp.json();
 
+  mostrarStatus(mensagensStatus[pedido.status] || pedido.status);
+
   if (pedido.status === "pronto") {
-    mostrarStatus(`Pronto! O relatório foi enviado para ${pedido.cliente.email_contato}.`);
+    mostrarDownload(pedido);
     return;
   }
-
-  mostrarStatus(mensagensStatus[pedido.status] || pedido.status);
 
   if (pedido.status !== "erro") {
     setTimeout(() => consultarStatus(pedidoId), 4000);

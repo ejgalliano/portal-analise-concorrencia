@@ -138,6 +138,16 @@ input[type="email"] {
   font-size: 0.95rem;
 }
 
+.download-pedido {
+  margin-top: 24px;
+}
+
+.aviso-download {
+  margin-top: 12px;
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+
 /* ---------- Página de vendas ---------- */
 
 .wrap-estreito {

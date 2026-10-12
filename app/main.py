@@ -33,7 +33,7 @@ import logging
 from pathlib import Path
 
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -121,6 +121,37 @@ def consultar_pedido(pedido_id: str):
     if pedido is None:
         raise HTTPException(status_code=404, detail="Pedido não encontrado.")
     return pedido
+
+
+@app.get("/pedidos/{pedido_id}/download")
+def download_relatorio(pedido_id: str, token: str):
+    """Entrega direta do PDF — é a forma principal de entrega do relatório.
+
+    Protegido por download_token (gerado junto com o pedido, não é o id
+    dele) em vez de autenticação de usuário, já que não há contas no
+    sistema. O link completo (id + token) só é conhecido por quem recebeu
+    a página de retorno do próprio pagamento.
+    """
+    pedido = storage.carregar(pedido_id)
+    if pedido is None:
+        raise HTTPException(status_code=404, detail="Pedido não encontrado.")
+    if token != pedido.download_token:
+        raise HTTPException(status_code=403, detail="Token de download inválido.")
+    if pedido.status != "pronto" or not pedido.caminho_relatorio:
+        raise HTTPException(status_code=409, detail="Relatório ainda não está pronto.")
+
+    caminho = Path(pedido.caminho_relatorio)
+    if not caminho.exists():
+        # No Render (plano free), o disco é efêmero — some ao reiniciar ou
+        # fazer um novo deploy. Se isso acontecer, o cliente perdeu o
+        # relatório e precisa ser atendido manualmente (ou refazer o pedido).
+        raise HTTPException(
+            status_code=410,
+            detail="O arquivo do relatório não está mais disponível no servidor.",
+        )
+
+    nome_arquivo = f"analise-concorrencia-{pedido.cliente.nome}.pdf".replace(" ", "-")
+    return FileResponse(caminho, media_type="application/pdf", filename=nome_arquivo)
 
 
 @app.api_route("/api/webhooks/mercadopago", methods=["GET", "POST"])
@@ -215,11 +246,19 @@ def processar_pedido(pedido_id: str) -> None:
         montar_pdf(pedido.cliente.nome, resultados, secoes_gerais, caminho_relatorio)
         pedido.caminho_relatorio = caminho_relatorio
 
-        enviar_relatorio_por_email(pedido.cliente.email_contato, pedido.cliente.nome, caminho_relatorio)
+        # A entrega principal é o download (pedido.status "pronto" já libera o
+        # botão na página de retorno). O e-mail é um complemento opcional —
+        # se falhar (ex.: domínio não verificado na Resend, ou a chave nem
+        # estiver configurada), o pedido não deve ser marcado como erro,
+        # porque o PDF já existe e pode ser baixado.
+        try:
+            enviar_relatorio_por_email(pedido.cliente.email_contato, pedido.cliente.nome, caminho_relatorio)
+        except Exception:
+            log.exception("Falha ao enviar e-mail do pedido %s — download continua disponível.", pedido_id)
 
         pedido.status = "pronto"
         storage.salvar(pedido)
-        log.info("Pedido %s concluído e enviado para %s.", pedido_id, pedido.cliente.email_contato)
+        log.info("Pedido %s concluído — relatório disponível para download.", pedido_id)
 
     except Exception as exc:  # noqa: BLE001 — queremos capturar e registrar qualquer falha do pipeline
         log.exception("Falha ao processar pedido %s", pedido_id)
