@@ -24,9 +24,12 @@ acesso à ferramenta "web_search" habilitado na conta da Anthropic
 from __future__ import annotations
 
 import json
+import logging
 import re
 
 import anthropic
+
+log = logging.getLogger("portal-analise-concorrencia")
 
 from .config import settings
 from .models import Empresa
@@ -110,6 +113,13 @@ def _extrair_tool_input(resposta, nome_tool: str) -> dict:
             return bloco.input
     texto_final = "".join(
         bloco.text for bloco in resposta.content if getattr(bloco, "type", None) == "text"
+    )
+    # Diagnóstico: a tool esperada não veio — registra o motivo da parada e
+    # os tipos de bloco devolvidos, para não ficar no escuro na próxima falha.
+    tipos_blocos = [getattr(b, "type", "?") for b in resposta.content]
+    log.warning(
+        "Tool '%s' não foi chamada. stop_reason=%s, tipos_de_bloco=%s, trecho_do_texto=%r",
+        nome_tool, resposta.stop_reason, tipos_blocos, texto_final[:1500],
     )
     if not texto_final:
         raise ValueError(f"O modelo não chamou a tool '{nome_tool}' nem devolveu texto para extrair JSON.")
@@ -343,7 +353,12 @@ def pesquisar_empresa(empresa: Empresa, papel: str, uso_acumulado: dict | None =
 
     resposta = _get_client().messages.create(
         model=settings.anthropic_model,
-        max_tokens=8000,
+        # 13 frentes com parágrafo denso + fontes cada uma é bastante
+        # conteúdo de saída — 8000 tokens era curto e deixava a resposta
+        # cortada antes de a tool ser chamada (sem tool_use, sem JSON, erro
+        # de parsing). 16000 dá folga sem custo extra: max_tokens é só o
+        # teto, o custo real é pelo que o modelo efetivamente gerar.
+        max_tokens=16000,
         system=system,
         messages=[{"role": "user", "content": prompt}],
         tools=[
@@ -394,7 +409,7 @@ def sintetizar_secoes_gerais(cliente_nome: str, resultados: dict[str, dict], uso
 
     resposta = _get_client().messages.create(
         model=settings.anthropic_model,
-        max_tokens=8000,
+        max_tokens=12000,
         system=system,
         messages=[{"role": "user", "content": prompt}],
         tools=[_TOOL_REGISTRAR_SINTESE],
