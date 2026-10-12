@@ -236,18 +236,34 @@ def _chamar_ate_tool(
                 # melhor que erro, mas fica registrado em log para auditoria).
                 return bloco_tool.input
 
+            # IMPORTANTE (bug real encontrado num teste em 12/10/2026, erro
+            # 400 "tool_use ids were found without tool_result blocks"): a
+            # API exige que todo bloco tool_use seja seguido, na mensagem
+            # seguinte, por um tool_result com o MESMO id — mesmo sendo uma
+            # tool client-side (não executamos nada de verdade, mas a API
+            # ainda exige o par). Uma mensagem de usuário em texto livre
+            # sozinha, sem o tool_result, quebra o protocolo e derruba a
+            # chamada inteira (incluindo a pesquisa já paga). O conteúdo do
+            # tool_result é o que usamos para dizer ao modelo o que falta —
+            # a API trata isso como o "resultado" da chamada à tool.
             historico = historico + [
                 {"role": "assistant", "content": resposta.content},
                 {
                     "role": "user",
-                    "content": (
-                        f"Sua chamada à tool '{nome_tool}' foi registrada, mas está "
-                        f"incompleta ou vazia nos seguintes pontos: {'; '.join(problemas)}. "
-                        "Chame a tool novamente, agora com o conteúdo completo para "
-                        "esses pontos — reaproveite a pesquisa que você já fez, só "
-                        "pesquise de novo o que for estritamente necessário para "
-                        "preencher o que falta."
-                    ),
+                    "content": [
+                        {
+                            "type": "tool_result",
+                            "tool_use_id": bloco_tool.id,
+                            "content": (
+                                f"Registro incompleto ou vazio nos seguintes pontos: "
+                                f"{'; '.join(problemas)}. Chame a tool '{nome_tool}' "
+                                "novamente, agora com o conteúdo completo para esses "
+                                "pontos — reaproveite a pesquisa que você já fez, só "
+                                "pesquise de novo o que for estritamente necessário "
+                                "para preencher o que falta."
+                            ),
+                        }
+                    ],
                 },
             ]
             continue
