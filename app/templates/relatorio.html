@@ -146,7 +146,7 @@
       <thead>
         <tr>
           <th>Canal / frente</th>
-          {% for nome in secoes.mapa_oportunidade_comparativo[0].empresas.keys() %}
+          {% for nome in nomes_empresas %}
           <th>{{ nome }}</th>
           {% endfor %}
         </tr>
@@ -155,7 +155,8 @@
         {% for item in secoes.mapa_oportunidade_comparativo %}
         <tr>
           <td class="col-empresa">{{ item.canal }}</td>
-          {% for valor in item.empresas.values() %}
+          {% for nome in nomes_empresas %}
+          {% set valor = item.empresas.get(nome, "n/d") %}
           <td class="col-centro">
             {% if valor == "✓" %}<span class="badge badge-ok">✓</span>
             {% elif valor == "—" %}<span class="badge badge-off">—</span>
