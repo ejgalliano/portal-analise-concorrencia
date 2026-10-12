@@ -48,8 +48,27 @@ _PRECOS_POR_MILHAO_USD = {
     "claude-opus-4-5": {"input": 5.0, "output": 25.0},
     "claude-opus-4-1": {"input": 15.0, "output": 75.0},
     "claude-opus-4": {"input": 15.0, "output": 75.0},
+    "claude-sonnet-5-5": {"input": 2.0, "output": 10.0},
+    "claude-sonnet-5": {"input": 2.0, "output": 10.0},
+    "claude-sonnet-4-6": {"input": 3.0, "output": 15.0},
 }
 _PRECO_BUSCA_WEB_USD_POR_MIL = 10.0
+
+# Teto de buscas web por CHAMADA à API (não por pedido inteiro) — cada
+# chamada de pesquisar_empresa/sintetizar_secoes_gerais que usa a tool de
+# busca pode fazer no máximo isso. Antes era 40 (US$ 0,40/chamada só de
+# busca); 10 trava isso em US$ 0,10/chamada. Decisão de Emerson, 12/10/2026,
+# após um teste que custou US$ 5 por um bug de dimensionamento (ver
+# _chamar_ate_tool e CustoExcedidoError).
+_MAX_BUSCAS_POR_CHAMADA = 10
+
+
+class CustoExcedidoError(RuntimeError):
+    """O custo estimado acumulado deste pedido passou do teto configurado
+    (settings.custo_maximo_usd) — aborta o pedido imediatamente em vez de
+    continuar gastando. Decisão de Emerson, 12/10/2026: nenhum pedido deve
+    custar mais que o teto, nem em caso de bug ou comportamento inesperado
+    do modelo."""
 
 
 def _uso_vazio() -> dict:
@@ -133,9 +152,26 @@ def _extrair_tool_input(resposta, nome_tool: str) -> dict:
     return _extrair_json(texto_final)
 
 
+def _checar_teto_de_gasto(uso_acumulado: dict | None, model: str) -> None:
+    """Freio de gasto: aborta o pedido imediatamente se o custo estimado
+    acumulado já passou do teto (settings.custo_maximo_usd). Chamado depois
+    de CADA chamada à API — não só no fim — para nunca deixar um pedido
+    ultrapassar o teto, mesmo em caso de bug ou de o modelo fazer muito
+    mais buscas/tokens do que o esperado."""
+    if uso_acumulado is None:
+        return
+    custo_atual = calcular_custo_estimado_usd(uso_acumulado, model)
+    if custo_atual is not None and custo_atual > settings.custo_maximo_usd:
+        raise CustoExcedidoError(
+            f"Custo estimado acumulado (US$ {custo_atual:.4f}) passou do teto "
+            f"configurado (US$ {settings.custo_maximo_usd:.2f}) — pedido abortado "
+            "para não gastar mais."
+        )
+
+
 def _chamar_ate_tool(
     *, system: str, mensagens: list, tools: list, nome_tool: str, max_tokens: str | int,
-    model: str, uso_acumulado: dict | None, max_tentativas: int = 3,
+    model: str, uso_acumulado: dict | None, max_tentativas: int = 2,
 ) -> dict:
     """Chama a API e garante (dentro do razoável) que a tool `nome_tool` seja
     chamada antes de desistir — sem jogar fora pesquisa já paga.
@@ -145,10 +181,21 @@ def _chamar_ate_tool(
     texto. Em vez de falhar o pedido inteiro nessa hora (como acontecia
     antes — jogando fora toda a pesquisa já feita e seu custo), insiste
     numa nova mensagem na MESMA conversa, reaproveitando o que já foi
-    apurado, em vez de recomeçar a pesquisa do zero. Cada tentativa extra
-    custa só uma mensagem curta de correção, não uma nova pesquisa."""
+    apurado, em vez de recomeçar a pesquisa do zero.
+
+    IMPORTANTE (ajustado em 12/10/2026 depois de um teste que custou US$ 5
+    por causa de um bug de dimensionamento aqui): uma retomada de
+    pause_turn NÃO é uma correção barata — ela devolve ao modelo o MESMO
+    orçamento de buscas (até _MAX_BUSCAS_POR_CHAMADA) de novo, então cada
+    retomada pode custar tanto quanto a chamada original. Por isso
+    pause_turn só é retomado 1 vez (nunca mais, mesmo que max_tentativas
+    seja maior) — depois disso, desiste e tenta extrair o que der. Além
+    disso, o custo acumulado é checado depois de CADA chamada
+    (_checar_teto_de_gasto), então mesmo esse único retry é interrompido
+    na hora se passar do teto."""
     client = _get_client()
     historico = list(mensagens)
+    pause_turn_ja_retomado = False
 
     for tentativa in range(1, max_tentativas + 1):
         resposta = client.messages.create(
@@ -156,19 +203,23 @@ def _chamar_ate_tool(
         )
         if uso_acumulado is not None:
             _somar_uso(uso_acumulado, resposta)
+        _checar_teto_de_gasto(uso_acumulado, model)
 
         bloco_tool = _buscar_tool_use(resposta, nome_tool)
         if bloco_tool is not None:
             return bloco_tool.input
 
         log.warning(
-            "Tentativa %d/%d: tool '%s' não foi chamada (stop_reason=%s). Insistindo na mesma conversa.",
+            "Tentativa %d/%d: tool '%s' não foi chamada (stop_reason=%s).",
             tentativa, max_tentativas, nome_tool, resposta.stop_reason,
         )
-        if tentativa == max_tentativas:
-            break
 
         if resposta.stop_reason == "pause_turn":
+            if pause_turn_ja_retomado:
+                # Já usamos a única retomada permitida — não insiste de novo
+                # (isso recomeçaria outro orçamento de busca). Desiste aqui.
+                break
+            pause_turn_ja_retomado = True
             # pause_turn é a API pausando NO MEIO de uma busca web longa —
             # não é o modelo desistindo. O protocolo exige retomar enviando
             # o conteúdo da resposta pausada de volta tal como veio, sem
@@ -177,18 +228,22 @@ def _chamar_ate_tool(
             # responde 400 "web_search tool use ... was found without a
             # corresponding web_search_tool_result block"). Só continua.
             historico = historico + [{"role": "assistant", "content": resposta.content}]
-        else:
-            historico = historico + [
-                {"role": "assistant", "content": resposta.content},
-                {
-                    "role": "user",
-                    "content": (
-                        f"Você ainda não chamou a tool '{nome_tool}'. Pare de responder em texto "
-                        f"livre e chame agora a tool '{nome_tool}' com os resultados que você já "
-                        "apurou (não repita buscas que já fez, só registre o que já tem)."
-                    ),
-                },
-            ]
+            continue
+
+        if tentativa == max_tentativas:
+            break
+
+        historico = historico + [
+            {"role": "assistant", "content": resposta.content},
+            {
+                "role": "user",
+                "content": (
+                    f"Você ainda não chamou a tool '{nome_tool}'. Pare de responder em texto "
+                    f"livre e chame agora a tool '{nome_tool}' com os resultados que você já "
+                    "apurou (não repita buscas que já fez, só registre o que já tem)."
+                ),
+            },
+        ]
 
     # Esgotou as tentativas de insistir — último recurso, tenta extrair JSON
     # do texto da última resposta antes de desistir de vez.
@@ -424,7 +479,7 @@ def pesquisar_empresa(empresa: Empresa, papel: str, uso_acumulado: dict | None =
         system=system,
         mensagens=[{"role": "user", "content": prompt}],
         tools=[
-            {"type": "web_search_20250305", "name": "web_search", "max_uses": 40},
+            {"type": "web_search_20250305", "name": "web_search", "max_uses": _MAX_BUSCAS_POR_CHAMADA},
             _tool_registrar_pesquisa(),
         ],
         nome_tool="registrar_pesquisa_empresa",

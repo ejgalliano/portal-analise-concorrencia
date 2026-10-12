@@ -10,7 +10,18 @@ class Settings(BaseSettings):
 
     # Anthropic (motor de pesquisa e redação do relatório)
     anthropic_api_key: str = ""
-    anthropic_model: str = "claude-opus-5"
+    # Trocado de claude-opus-5 para claude-sonnet-5 em 12/10/2026 (decisão
+    # de Emerson): US$ 2,00/US$ 10,00 por MTok vs US$ 5,00/US$ 25,00 do
+    # Opus 5 — reduz o custo de tokens em ~35-40% por relatório, mantendo
+    # qualidade esperada equivalente para pesquisa factual estruturada.
+    anthropic_model: str = "claude-sonnet-5"
+
+    # Teto de gasto estimado POR PEDIDO, em USD — ver generator.py,
+    # _checar_teto_de_gasto(). Checado depois de CADA chamada à API; se o
+    # custo acumulado passar disso, o pedido é abortado na hora (vira
+    # status "erro"), não importa o motivo. Decisão de Emerson, 12/10/2026,
+    # depois de um teste que custou US$ 5 por um bug de dimensionamento.
+    custo_maximo_usd: float = 2.0
 
     # E-mail transacional (Resend) — troque de provedor sem mexer no resto do sistema
     resend_api_key: str = ""
