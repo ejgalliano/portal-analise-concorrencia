@@ -50,6 +50,11 @@ function montarEsqueletoStatus() {
   `;
 }
 
+// "erro" não é uma etapa em si — é uma falha DURANTE alguma etapa. Guarda
+// a última etapa conhecida para saber qual marcar em vermelho quando o
+// status virar "erro" (senão nenhuma etapa fica destacada).
+let ultimaEtapaConhecida = 0;
+
 function mostrarStatus(texto, statusAtual) {
   statusBox.hidden = false;
   statusBox.classList.toggle("status-erro", statusAtual === "erro");
@@ -60,7 +65,10 @@ function mostrarStatus(texto, statusAtual) {
 
   document.getElementById("status-texto").textContent = texto;
 
-  const indiceAtual = statusAtual in INDICE_ETAPA ? INDICE_ETAPA[statusAtual] : -1;
+  if (statusAtual in INDICE_ETAPA) {
+    ultimaEtapaConhecida = INDICE_ETAPA[statusAtual];
+  }
+  const indiceAtual = statusAtual === "erro" ? ultimaEtapaConhecida : (statusAtual in INDICE_ETAPA ? INDICE_ETAPA[statusAtual] : -1);
   const lista = document.getElementById("lista-etapas");
   lista.innerHTML = ETAPAS.map((etapa, i) => {
     let classe = "etapa";

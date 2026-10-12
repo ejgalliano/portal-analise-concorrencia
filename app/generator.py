@@ -168,17 +168,27 @@ def _chamar_ate_tool(
         if tentativa == max_tentativas:
             break
 
-        historico = historico + [
-            {"role": "assistant", "content": resposta.content},
-            {
-                "role": "user",
-                "content": (
-                    f"Você ainda não chamou a tool '{nome_tool}'. Pare de responder em texto "
-                    f"livre e chame agora a tool '{nome_tool}' com os resultados que você já "
-                    "apurou (não repita buscas que já fez, só registre o que já tem)."
-                ),
-            },
-        ]
+        if resposta.stop_reason == "pause_turn":
+            # pause_turn é a API pausando NO MEIO de uma busca web longa —
+            # não é o modelo desistindo. O protocolo exige retomar enviando
+            # o conteúdo da resposta pausada de volta tal como veio, sem
+            # intercalar uma mensagem de usuário no meio (isso quebra o
+            # par tool_use/tool_result da busca em andamento e a API
+            # responde 400 "web_search tool use ... was found without a
+            # corresponding web_search_tool_result block"). Só continua.
+            historico = historico + [{"role": "assistant", "content": resposta.content}]
+        else:
+            historico = historico + [
+                {"role": "assistant", "content": resposta.content},
+                {
+                    "role": "user",
+                    "content": (
+                        f"Você ainda não chamou a tool '{nome_tool}'. Pare de responder em texto "
+                        f"livre e chame agora a tool '{nome_tool}' com os resultados que você já "
+                        "apurou (não repita buscas que já fez, só registre o que já tem)."
+                    ),
+                },
+            ]
 
     # Esgotou as tentativas de insistir — último recurso, tenta extrair JSON
     # do texto da última resposta antes de desistir de vez.
