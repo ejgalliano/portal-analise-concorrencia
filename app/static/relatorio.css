@@ -219,6 +219,14 @@ p.legenda {
 .frente-corpo h3 { margin-top: 0; }
 .frente-corpo p { margin: 0; color: var(--cinza-claro); }
 
+/* Negrito dentro do texto corrido (dado/informação importante marcada
+   pela própria IA com **assim** — ver pdf_builder._negrito_md). Cor de
+   marca, não preto puro, pra destacar sem parecer um erro de formatação. */
+p strong, .frente-corpo p strong {
+  color: var(--marca-cinza);
+  font-weight: 700;
+}
+
 /* ---------- Destaques por frente (stat tiles estilo dashboard) ----------
    Reformulado em 12/10/2026 (feedback de Emerson: a v1 em caixa creme com
    borda vermelha fina "não dá pra vender" — pouco contraste, número

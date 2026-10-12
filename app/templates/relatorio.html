@@ -25,13 +25,13 @@
   <!-- SUMÁRIO EXECUTIVO -->
   <section class="secao">
     <h2>Sumário executivo</h2>
-    <p>{{ secoes.sumario_executivo }}</p>
+    <p>{{ secoes.sumario_executivo|negrito_md }}</p>
   </section>
 
   <!-- METODOLOGIA -->
   <section class="secao">
     <h2>Metodologia e fontes</h2>
-    <p>{{ secoes.metodologia_e_fontes }}</p>
+    <p>{{ secoes.metodologia_e_fontes|negrito_md }}</p>
   </section>
 
   <!-- DIAGNÓSTICO POR EMPRESA -->
@@ -84,7 +84,7 @@
             {% endfor %}
           </div>
           {% endif %}
-          <p>{{ entrada.get("texto", "Não pesquisado.") }}</p>
+          <p>{{ entrada.get("texto", "Não pesquisado.")|negrito_md }}</p>
         </div>
       </div>
     {% endfor %}

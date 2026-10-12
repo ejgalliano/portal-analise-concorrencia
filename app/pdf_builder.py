@@ -13,6 +13,7 @@ from datetime import datetime
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader
+from jinja2.utils import markupsafe
 from weasyprint import HTML
 
 from .column_labels import rotulo_coluna
@@ -22,6 +23,27 @@ from .report_frentes import FRENTES
 _BASE_DIR = Path(__file__).parent
 _env = Environment(loader=FileSystemLoader(_BASE_DIR / "templates"))
 _env.filters["rotulo_coluna"] = rotulo_coluna
+
+# Negrito dentro do texto corrido (pedido de Emerson em 12/10/2026: "dê
+# destaque com negrito com dados e informações importantes quando for
+# texto"). A IA escreve **assim** (markdown simples) em volta do dado que
+# quer destacar dentro do parágrafo (um número, um status, um nome), e este
+# filtro escapa o resto do texto como HTML normal e só transforma esse
+# marcador em <strong> — nunca interpreta HTML vindo do texto da IA, só
+# esse padrão específico, então não há risco de injeção.
+_PADRAO_NEGRITO = re.compile(r"\*\*(.+?)\*\*")
+
+
+def _negrito_md(texto: str) -> markupsafe.Markup:
+    se_texto = "" if texto is None else str(texto)
+    escapado = markupsafe.escape(se_texto)
+    convertido = _PADRAO_NEGRITO.sub(
+        lambda m: f"<strong>{m.group(1)}</strong>", str(escapado)
+    )
+    return markupsafe.Markup(convertido)
+
+
+_env.filters["negrito_md"] = _negrito_md
 
 
 _MESES_PT = [

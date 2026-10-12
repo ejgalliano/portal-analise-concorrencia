@@ -373,7 +373,17 @@ def _schema_frente() -> dict:
         "properties": {
             "texto": {
                 "type": "string",
-                "description": "Parágrafo denso e factual, terminando com a citação de fonte(s) entre colchetes.",
+                "description": (
+                    "Parágrafo denso e factual, terminando com a citação de "
+                    "fonte(s) entre colchetes. Marque com **asteriscos duplos** "
+                    "(markdown simples) cada dado/informação importante dentro "
+                    "do texto — número, status, nome de produto/pessoa, data — "
+                    "para que apareça em negrito no PDF final, ex.: 'A página "
+                    "tem **12.000 seguidores** e **98% de recomendação**'. Use "
+                    "com moderação (só o que realmente importa destacar, não "
+                    "a frase toda), nunca em volta da citação de fonte entre "
+                    "colchetes."
+                ),
             },
             # Adicionado em 12/10/2026 (pedido de Emerson, depois de ver o
             # relatório de verdade: "só tem texto, não tem nada parecido com
