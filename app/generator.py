@@ -245,6 +245,21 @@ def _chamar_ate_tool(
 
         bloco_tool = _buscar_tool_use(resposta, nome_tool)
         if bloco_tool is not None:
+            if resposta.stop_reason == "max_tokens":
+                # Achado real em 12/10/2026 (pedidos eb74ad08 e c16d98b4):
+                # a resposta foi cortada por max_tokens NO MEIO da tool —
+                # o conteúdo que sobrou é parcial (ex.: só as primeiras
+                # frentes), não porque o modelo pulou algo de propósito.
+                # Deixa isso bem visível no log, separado de uma falha de
+                # conteúdo "de verdade", porque o fix certo é aumentar
+                # max_tokens, não insistir pedindo pro modelo "completar".
+                log.warning(
+                    "Chamada %d: tool '%s' foi chamada mas a resposta foi CORTADA por "
+                    "max_tokens=%s (stop_reason=max_tokens) — conteúdo parcial, não é "
+                    "o modelo pulando campos de propósito. Se isso repetir, aumente "
+                    "max_tokens nesta chamada.",
+                    chamadas_feitas, nome_tool, max_tokens,
+                )
             problemas = validar(bloco_tool.input) if validar is not None else []
             if not problemas:
                 return bloco_tool.input
@@ -608,11 +623,20 @@ def pesquisar_empresa(empresa: Empresa, papel: str, uso_acumulado: dict | None =
         ],
         nome_tool="registrar_pesquisa_empresa",
         # 13 frentes com parágrafo denso + fontes cada uma é bastante
-        # conteúdo de saída — 8000 tokens era curto e deixava a resposta
-        # cortada antes de a tool ser chamada (sem tool_use, sem JSON, erro
-        # de parsing). 16000 dá folga sem custo extra: max_tokens é só o
-        # teto, o custo real é pelo que o modelo efetivamente gerar.
-        max_tokens=16000,
+        # conteúdo de saída. 16000 ERA curto: confirmado nos logs reais do
+        # Render em 12/10/2026 (pedido c16d98b4) que a chamada final de
+        # pesquisa batia EXATAMENTE em 16000 tokens de saída — ou seja, a
+        # resposta era cortada no meio do JSON da tool, não porque o
+        # modelo "decidiu" pular frentes. Isso explicava por que
+        # especificamente as frentes 4-13 (as últimas a serem escritas)
+        # chegavam vazias na validação (_validar_pesquisa_empresa) — e
+        # cada correção automática reenviava TODO o histórico de busca de
+        # novo (até 100K+ tokens de entrada por chamada), multiplicando o
+        # custo até estourar o teto. 24000 dá folga real; max_tokens é só o
+        # teto, o custo real é pelo que o modelo efetivamente gerar — mas
+        # evitar o corte evita a retentativa cara, então isso tende a
+        # BAIXAR o custo médio por pedido, não subir.
+        max_tokens=24000,
         model=settings.anthropic_model,
         uso_acumulado=uso_acumulado,
         validar=_validar_pesquisa_empresa,
@@ -658,7 +682,14 @@ def sintetizar_secoes_gerais(cliente_nome: str, resultados: dict[str, dict], uso
         mensagens=[{"role": "user", "content": prompt}],
         tools=[_TOOL_REGISTRAR_SINTESE],
         nome_tool="registrar_sintese",
-        max_tokens=12000,
+        # Mesmo motivo do max_tokens de pesquisar_empresa acima: 12000
+        # também foi visto batendo no teto nos logs reais (pedido
+        # eb74ad08, chamada de síntese cortada em exatamente 12000 tokens
+        # de saída), e a síntese junta o conteúdo de TODAS as empresas —
+        # cliente + concorrentes — num único JSON grande (sumário,
+        # metodologia, comparativo, 2 painéis, mapa de oportunidade,
+        # fontes). 16000 dá folga real.
+        max_tokens=16000,
         model=settings.anthropic_model,
         uso_acumulado=uso_acumulado,
         validar=_validar_sintese,
