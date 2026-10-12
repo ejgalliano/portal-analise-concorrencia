@@ -53,10 +53,17 @@ form.addEventListener("submit", async (e) => {
     return;
   }
 
-  form.querySelector(".btn-primario").disabled = true;
-  mostrarStatus("Enviando pedido e preparando o pagamento...");
+  // Modo de teste: acesse /comprar?teste=1 para pular o pagamento e
+  // validar o fluxo completo (pesquisa real, PDF real, download real)
+  // sem precisar de uma cobrança no Mercado Pago. Só funciona se
+  // PERMITIR_PEDIDO_TESTE estiver ligado no servidor.
+  const modoTeste = new URLSearchParams(window.location.search).get("teste") === "1";
+  const endpoint = modoTeste ? "/api/pedidos/teste" : "/api/pedidos";
 
-  const resp = await fetch("/api/pedidos", {
+  form.querySelector(".btn-primario").disabled = true;
+  mostrarStatus(modoTeste ? "Enviando pedido de teste (sem pagamento)..." : "Enviando pedido e preparando o pagamento...");
+
+  const resp = await fetch(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -69,7 +76,12 @@ form.addEventListener("submit", async (e) => {
     return;
   }
 
-  const { checkout_url } = await resp.json();
-  mostrarStatus("Pedido criado! Redirecionando para o pagamento...");
-  window.location.href = checkout_url;
+  const resultado = await resp.json();
+  if (modoTeste) {
+    mostrarStatus("Pedido de teste criado! Redirecionando para acompanhar...");
+    window.location.href = resultado.retorno_url;
+  } else {
+    mostrarStatus("Pedido criado! Redirecionando para o pagamento...");
+    window.location.href = resultado.checkout_url;
+  }
 });

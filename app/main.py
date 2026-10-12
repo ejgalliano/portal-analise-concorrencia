@@ -115,6 +115,27 @@ def criar_pedido(dados: PedidoCreate, request: Request):
     return {"id": pedido.id, "status": pedido.status, "checkout_url": pedido.checkout_url}
 
 
+@app.post("/api/pedidos/teste")
+def criar_pedido_teste(dados: PedidoCreate, background_tasks: BackgroundTasks):
+    """Cria um pedido pulando o Mercado Pago — só para validar o fluxo de
+    navegação e entrega (download) sem precisar de uma cobrança real.
+
+    Só existe enquanto settings.permitir_pedido_teste estiver ligado (ver
+    config.py) — desligue a variável PERMITIR_PEDIDO_TESTE assim que a
+    integração com o Mercado Pago estiver testada, para este atalho não
+    ficar disponível em produção.
+    """
+    if not settings.permitir_pedido_teste:
+        raise HTTPException(status_code=404)
+
+    pedido = Pedido.novo(dados)
+    pedido.status = "pago"
+    storage.salvar(pedido)
+    log.info("Pedido de teste %s criado — pulando pagamento, iniciando geração.", pedido.id)
+    background_tasks.add_task(processar_pedido, pedido.id)
+    return {"id": pedido.id, "status": pedido.status, "retorno_url": f"/pedidos/{pedido.id}/sucesso"}
+
+
 @app.get("/api/pedidos/{pedido_id}")
 def consultar_pedido(pedido_id: str):
     pedido = storage.carregar(pedido_id)

@@ -29,5 +29,12 @@ class Settings(BaseSettings):
     mercadopago_access_token: str = ""
     preco_relatorio_centavos: int = 1990
 
+    # Modo de teste: libera POST /api/pedidos/teste, que pula o pagamento e
+    # roda o resto do pipeline de verdade (pesquisa real, PDF real).
+    # Deixe DESLIGADO (False) assim que a integração com o Mercado Pago
+    # estiver funcionando — é um atalho de validação, não um recurso para
+    # produção.
+    permitir_pedido_teste: bool = False
+
 
 settings = Settings()
