@@ -74,6 +74,11 @@ class Pedido(BaseModel):
     avisos_linter: list[str] = []
     erro: Optional[str] = None
 
+    # Uso real da API da Anthropic neste pedido — chamadas, tokens, buscas
+    # web e custo estimado (ver app/generator.py). None até o pedido
+    # terminar o processamento.
+    uso_ia: Optional[dict] = None
+
     # Pagamento (Mercado Pago)
     preference_id: Optional[str] = None
     payment_id: Optional[str] = None

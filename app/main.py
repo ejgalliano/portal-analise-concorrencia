@@ -245,7 +245,14 @@ def processar_pedido(pedido_id: str) -> None:
         pedido.status = "pesquisando"
         storage.salvar(pedido)
 
-        resultados, secoes_gerais = gerar_relatorio_completo(pedido.cliente, pedido.concorrentes)
+        resultados, secoes_gerais, uso_ia = gerar_relatorio_completo(pedido.cliente, pedido.concorrentes)
+        pedido.uso_ia = uso_ia
+        custo = uso_ia.get("custo_estimado_usd")
+        log.info(
+            "Pedido %s — uso da IA: %d chamadas, %d tokens entrada, %d tokens saída, %d buscas web, custo estimado %s",
+            pedido_id, uso_ia["chamadas"], uso_ia["input_tokens"], uso_ia["output_tokens"],
+            uso_ia["web_search_requests"], f"US$ {custo:.4f}" if custo is not None else "desconhecido (modelo fora da tabela de preços)",
+        )
 
         pedido.status = "verificando"
         storage.salvar(pedido)

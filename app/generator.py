@@ -34,6 +34,48 @@ from .report_frentes import FRENTES, REGRA_ZERO_INTERPRETACAO
 
 _client: anthropic.Anthropic | None = None
 
+# Preços oficiais por milhão de tokens (USD) — platform.claude.com/docs/en/about-claude/pricing,
+# consultado em 12/10/2026. Atualize aqui se os preços mudarem; o cálculo
+# de custo é só uma estimativa para acompanhar o gasto, não é usado para
+# cobrar o cliente.
+_PRECOS_POR_MILHAO_USD = {
+    "claude-opus-5-5": {"input": 4.0, "output": 20.0},
+    "claude-opus-5": {"input": 5.0, "output": 25.0},
+    "claude-opus-4-8": {"input": 5.0, "output": 25.0},
+    "claude-opus-4-5": {"input": 5.0, "output": 25.0},
+    "claude-opus-4-1": {"input": 15.0, "output": 75.0},
+    "claude-opus-4": {"input": 15.0, "output": 75.0},
+}
+_PRECO_BUSCA_WEB_USD_POR_MIL = 10.0
+
+
+def _uso_vazio() -> dict:
+    return {"chamadas": 0, "input_tokens": 0, "output_tokens": 0, "web_search_requests": 0}
+
+
+def _somar_uso(acumulado: dict, resposta) -> None:
+    acumulado["chamadas"] += 1
+    uso = resposta.usage
+    acumulado["input_tokens"] += uso.input_tokens or 0
+    acumulado["output_tokens"] += uso.output_tokens or 0
+    if uso.server_tool_use:
+        acumulado["web_search_requests"] += uso.server_tool_use.web_search_requests or 0
+
+
+def calcular_custo_estimado_usd(uso: dict, modelo: str) -> float | None:
+    """Estimativa de custo em USD a partir do uso acumulado — None se o
+    modelo não estiver na tabela de preços conhecida (atualize
+    _PRECOS_POR_MILHAO_USD nesse caso)."""
+    precos = _PRECOS_POR_MILHAO_USD.get(modelo)
+    if precos is None:
+        return None
+    custo_tokens = (
+        uso["input_tokens"] / 1_000_000 * precos["input"]
+        + uso["output_tokens"] / 1_000_000 * precos["output"]
+    )
+    custo_busca = uso["web_search_requests"] / 1_000 * _PRECO_BUSCA_WEB_USD_POR_MIL
+    return round(custo_tokens + custo_busca, 4)
+
 
 def _get_client() -> anthropic.Anthropic:
     global _client
@@ -63,7 +105,7 @@ def _prompt_frentes() -> str:
     return "\n".join(linhas)
 
 
-def pesquisar_empresa(empresa: Empresa, papel: str) -> dict:
+def pesquisar_empresa(empresa: Empresa, papel: str, uso_acumulado: dict | None = None) -> dict:
     """
     papel: "cliente" ou "concorrente" — só muda o texto do prompt, a
     profundidade da pesquisa é idêntica para todas as empresas (regra
@@ -121,13 +163,16 @@ def pesquisar_empresa(empresa: Empresa, papel: str) -> dict:
         tools=[{"type": "web_search_20250305", "name": "web_search", "max_uses": 40}],
     )
 
+    if uso_acumulado is not None:
+        _somar_uso(uso_acumulado, resposta)
+
     texto_final = "".join(
         bloco.text for bloco in resposta.content if getattr(bloco, "type", None) == "text"
     )
     return _extrair_json(texto_final)
 
 
-def sintetizar_secoes_gerais(cliente_nome: str, resultados: dict[str, dict]) -> dict:
+def sintetizar_secoes_gerais(cliente_nome: str, resultados: dict[str, dict], uso_acumulado: dict | None = None) -> dict:
     """
     resultados: {"<nome da empresa>": {"papel": "cliente"|"concorrente", "frentes": {...}}}
 
@@ -178,28 +223,36 @@ def sintetizar_secoes_gerais(cliente_nome: str, resultados: dict[str, dict]) -> 
         messages=[{"role": "user", "content": prompt}],
     )
 
+    if uso_acumulado is not None:
+        _somar_uso(uso_acumulado, resposta)
+
     texto_final = "".join(
         bloco.text for bloco in resposta.content if getattr(bloco, "type", None) == "text"
     )
     return _extrair_json(texto_final)
 
 
-def gerar_relatorio_completo(cliente, concorrentes) -> tuple[dict, dict]:
+def gerar_relatorio_completo(cliente, concorrentes) -> tuple[dict, dict, dict]:
     """
     Orquestra a pesquisa de todas as empresas + a síntese das seções
-    gerais. Retorna (resultados_por_empresa, secoes_gerais).
+    gerais. Retorna (resultados_por_empresa, secoes_gerais, uso_ia), onde
+    uso_ia acumula chamadas/tokens/buscas de todas as chamadas deste
+    pedido e inclui "custo_estimado_usd" (None se o modelo não estiver em
+    _PRECOS_POR_MILHAO_USD).
     """
     resultados: dict[str, dict] = {}
+    uso = _uso_vazio()
 
     resultados[cliente.nome] = {
         "papel": "cliente",
-        "frentes": pesquisar_empresa(cliente, "cliente"),
+        "frentes": pesquisar_empresa(cliente, "cliente", uso),
     }
     for concorrente in concorrentes:
         resultados[concorrente.nome] = {
             "papel": "concorrente",
-            "frentes": pesquisar_empresa(concorrente, "concorrente"),
+            "frentes": pesquisar_empresa(concorrente, "concorrente", uso),
         }
 
-    secoes_gerais = sintetizar_secoes_gerais(cliente.nome, resultados)
-    return resultados, secoes_gerais
+    secoes_gerais = sintetizar_secoes_gerais(cliente.nome, resultados, uso)
+    uso["custo_estimado_usd"] = calcular_custo_estimado_usd(uso, settings.anthropic_model)
+    return resultados, secoes_gerais, uso
