@@ -219,48 +219,92 @@ p.legenda {
 .frente-corpo h3 { margin-top: 0; }
 .frente-corpo p { margin: 0; color: var(--cinza-claro); }
 
-/* ---------- Destaques por frente (badges estilo "stat tile") ----------
-   Adicionado em 12/10/2026 (pedido de Emerson, relatório mais visual tipo
-   Reportei): cada frente agora pode ter 2-4 badges com o número/status
-   mais importante em destaque ANTES do parágrafo corrido — quebra a
-   sensação de parede de texto já na primeira olhada, sem remover nada do
-   texto (continua logo abaixo, para quem quer o detalhe). Os badges vêm
-   da própria IA resumindo o que ela escreveu no texto (ver generator.py,
-   campo "destaques") — nunca um número calculado/parseado aqui no CSS ou
-   no Python, pra não repetir o bug do parser de nota que inventava barra
-   errada (ver pdf_builder._parsear_nota_de_5). */
+/* ---------- Destaques por frente (stat tiles estilo dashboard) ----------
+   Reformulado em 12/10/2026 (feedback de Emerson: a v1 em caixa creme com
+   borda vermelha fina "não dá pra vender" — pouco contraste, número
+   pequeno, parece aviso e não estatística). v2: tile branco sólido com
+   sombra (profundidade real, não só borda), número grande em vermelho de
+   marca (a cor que chama atenção na página, igual Reportei usa cor viva
+   pro número), rótulo em caixa alta bem separado por cima. Os valores
+   continuam vindo 100% da IA resumindo o próprio texto da frente (ver
+   generator.py, campo "destaques") — nunca parseado aqui. */
 .destaques {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.3cm;
-  margin-bottom: 0.3cm;
+  gap: 0.28cm;
+  margin-bottom: 0.35cm;
 }
 
 .destaque-badge {
   display: flex;
   flex-direction: column;
-  gap: 0.03cm;
-  background: var(--creme);
-  border: 1px solid var(--creme-escuro);
-  border-left: 0.1cm solid var(--marca-vermelho);
-  border-radius: 0.12cm;
-  padding: 0.18cm 0.35cm;
-  min-width: 2.6cm;
-}
-
-.destaque-valor {
-  font-size: 12.5pt;
-  font-weight: 700;
-  color: var(--marca-cinza);
-  line-height: 1.15;
+  gap: 0.08cm;
+  background: #ffffff;
+  border: 1px solid var(--borda);
+  border-radius: 0.2cm;
+  padding: 0.3cm 0.4cm;
+  min-width: 3.1cm;
+  box-shadow: 0 0.06cm 0.16cm rgba(66, 66, 66, 0.14);
 }
 
 .destaque-rotulo {
-  font-size: 7.5pt;
+  font-size: 7.3pt;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
   color: var(--cinza-claro);
+  order: 1;
 }
+
+.destaque-valor {
+  font-size: 17pt;
+  font-weight: 800;
+  color: var(--marca-vermelho);
+  line-height: 1.08;
+  order: 2;
+  letter-spacing: -0.01em;
+}
+
+/* ---------- Visão geral em números (grade de KPIs no topo do capítulo) ----
+   Nova nesta rodada: um resumo em tiles grandes ANTES da lista de frentes,
+   igual à primeira tela de um dashboard Reportei — reúne os destaques mais
+   relevantes já coletados (reaproveita os mesmos "destaques" de cada
+   frente, não gera dado novo) para dar o "resumo executivo visual" logo
+   na abertura do capítulo da empresa. */
+.kpi-overview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3cm;
+  margin-bottom: 0.55cm;
+}
+
+.kpi-tile {
+  flex: 1 1 3.6cm;
+  background: var(--marca-cinza);
+  border-radius: 0.22cm;
+  padding: 0.38cm 0.4cm;
+  min-width: 3.4cm;
+}
+
+.kpi-tile-valor {
+  font-size: 18.5pt;
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+}
+
+.kpi-tile-rotulo {
+  font-size: 7.3pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: rgba(255, 255, 255, 0.72);
+  margin-top: 0.1cm;
+}
+
+.kpi-tile:nth-child(odd) { background: var(--marca-vermelho); }
+.kpi-tile:nth-child(odd) .kpi-tile-rotulo { color: rgba(255, 255, 255, 0.82); }
 
 /* ---------- Tabelas ---------- */
 

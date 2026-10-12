@@ -50,6 +50,23 @@
       <h2>{{ nome_empresa }}</h2>
       {% if dados.papel == "cliente" %}<span class="tag-cliente">Empresa cliente</span>{% endif %}
     </div>
+    {% set kpis = [] %}
+    {% for f in frentes %}
+      {% set entrada_kpi = dados.frentes.get(f.numero|string, {}) %}
+      {% for d in (entrada_kpi.get("destaques") or []) %}
+        {% if kpis|length < 4 %}{% set _ = kpis.append(d) %}{% endif %}
+      {% endfor %}
+    {% endfor %}
+    {% if kpis %}
+    <div class="kpi-overview">
+      {% for d in kpis %}
+      <div class="kpi-tile">
+        <div class="kpi-tile-valor">{{ d.get("valor", "—") }}</div>
+        <div class="kpi-tile-rotulo">{{ d.get("rotulo", "") }}</div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
     {% for f in frentes %}
       {% set entrada = dados.frentes.get(f.numero|string, {}) %}
       <div class="frente">
