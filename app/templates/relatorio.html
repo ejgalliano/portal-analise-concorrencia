@@ -96,8 +96,15 @@
         {% for item in secoes.painel_reputacao_sinais_br %}
         <tr>
           <td class="col-empresa">{{ item.empresa }}</td>
-          {% for valor in item.colunas.values() %}
-          <td>{{ valor }}</td>
+          {% for chave, dado in item.colunas.items() %}
+          <td>
+            <div class="valor-com-barra">
+              <span>{{ dado.texto }}</span>
+              {% if dado.barra_pct is not none %}
+              <div class="mini-barra"><div class="mini-barra-preenchimento" style="width: {{ dado.barra_pct }}%;"></div></div>
+              {% endif %}
+            </div>
+          </td>
           {% endfor %}
         </tr>
         {% endfor %}
@@ -123,8 +130,15 @@
         {% for item in secoes.painel_atividade_marketing_digital %}
         <tr>
           <td class="col-empresa">{{ item.empresa }}</td>
-          {% for valor in item.colunas.values() %}
-          <td>{{ valor }}</td>
+          {% for chave, dado in item.colunas.items() %}
+          <td>
+            <div class="valor-com-barra">
+              <span>{{ dado.texto }}</span>
+              {% if dado.barra_pct is not none %}
+              <div class="mini-barra"><div class="mini-barra-preenchimento" style="width: {{ dado.barra_pct }}%;"></div></div>
+              {% endif %}
+            </div>
+          </td>
           {% endfor %}
         </tr>
         {% endfor %}
@@ -157,7 +171,7 @@
           <td class="col-empresa">{{ item.canal }}</td>
           {% for nome in nomes_empresas %}
           {% set valor = item.empresas.get(nome, "n/d") %}
-          <td class="col-centro">
+          <td class="col-centro {% if valor == '✓' %}cel-ok{% elif valor == '—' %}cel-off{% else %}cel-nd{% endif %}">
             {% if valor == "✓" %}<span class="badge badge-ok">Sim</span>
             {% elif valor == "—" %}<span class="badge badge-off">Não</span>
             {% else %}<span class="badge badge-nd">N/D</span>{% endif %}

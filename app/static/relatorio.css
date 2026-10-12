@@ -131,6 +131,22 @@ h2 {
   border-bottom: 2px solid var(--marca-cinza);
   padding-bottom: 0.15cm;
   margin-bottom: 0.5cm;
+  display: flex;
+  align-items: center;
+  gap: 0.28cm;
+}
+
+/* Pequeno acento quadrado antes de cada título de seção — puramente
+   decorativo (forma CSS, não depende de glifo de fonte/emoji, então
+   nunca falha ao renderizar), só para quebrar a sensação de "parede de
+   texto" e dar ritmo visual ao folhear o documento. */
+h2::before {
+  content: "";
+  flex: none;
+  width: 0.38cm;
+  height: 0.38cm;
+  background: var(--marca-vermelho);
+  border-radius: 0.09cm;
 }
 
 h3 {
@@ -249,3 +265,28 @@ tbody tr:nth-child(even) { background: var(--cinza-fundo); }
 .badge-ok { background: var(--verde-fundo); color: var(--verde); }
 .badge-off { background: var(--badge-vermelho-fundo); color: var(--badge-vermelho); }
 .badge-nd { background: var(--amarelo-fundo); color: var(--amarelo); font-size: 7.5pt; }
+
+/* Mapa de oportunidade em estilo heatmap — a célula inteira ganha um
+   fundo leve na cor do resultado (não só o selo), para o padrão
+   presente/ausente/n-d ficar visível ao passar o olho na tabela toda,
+   sem precisar ler célula por célula. */
+.cel-ok { background: var(--verde-fundo); }
+.cel-off { background: var(--badge-vermelho-fundo); }
+.cel-nd { background: var(--amarelo-fundo); }
+
+/* ---------- Barra comparativa dentro da célula (painéis) ---------- */
+
+.valor-com-barra { display: flex; flex-direction: column; gap: 0.12cm; }
+
+.mini-barra {
+  height: 0.16cm;
+  border-radius: 999px;
+  background: var(--borda);
+  overflow: hidden;
+}
+
+.mini-barra-preenchimento {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--marca-vermelho);
+}
