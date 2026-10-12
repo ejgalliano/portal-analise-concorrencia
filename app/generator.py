@@ -207,12 +207,35 @@ def _chamar_ate_tool(
     conteúdo nenhum de comparativo. Se `validar` aponta problemas, é
     tratado como se a tool não tivesse sido chamada: insiste numa nova
     mensagem, descrevendo exatamente o que falta, reaproveitando a
-    pesquisa já feita (sem precisar repetir buscas)."""
+    pesquisa já feita (sem precisar repetir buscas).
+
+    IMPORTANTE (bug encontrado em revisão de código em 12/10/2026, ANTES
+    de qualquer teste real — nunca chegou a acontecer em produção): a
+    retomada de pause_turn e as tentativas de correção (tool não
+    chamada / validação) usam o MESMO contador `tentativa`. Se o
+    pause_turn acontecesse justo na última tentativa permitida, o
+    `continue` não teria mais nenhuma iteração do `for` para cair —
+    o loop terminaria silenciosamente, a retomada que acabou de ser
+    montada em `historico` nunca seria enviada, e o código cairia no
+    fallback de extração usando a resposta pausada (incompleta),
+    quase certamente falhando o pedido à toa, mesmo tendo orçamento de
+    uma chamada a mais. Por isso a retomada de pause_turn agora usa um
+    orçamento de chamadas PRÓPRIO (`limite_chamadas`), separado do
+    contador de tentativas de correção — a única retomada de pause_turn
+    sempre tem sua chamada extra garantida, não importa em qual
+    tentativa ela aconteça."""
     client = _get_client()
     historico = list(mensagens)
     pause_turn_ja_retomado = False
+    tentativa = 0
+    # +1 de folga exclusiva para a única retomada de pause_turn permitida —
+    # ver nota acima. Sem essa folga, uma retomada na última tentativa de
+    # correção seria descartada silenciosamente.
+    limite_chamadas = max_tentativas + 1
+    chamadas_feitas = 0
 
-    for tentativa in range(1, max_tentativas + 1):
+    while chamadas_feitas < limite_chamadas:
+        chamadas_feitas += 1
         resposta = client.messages.create(
             model=model, max_tokens=max_tokens, system=system, messages=historico, tools=tools,
         )
@@ -226,12 +249,13 @@ def _chamar_ate_tool(
             if not problemas:
                 return bloco_tool.input
 
+            tentativa += 1
             log.warning(
                 "Tentativa %d/%d: tool '%s' foi chamada mas o conteúdo não passou na "
                 "validação: %s",
                 tentativa, max_tentativas, nome_tool, "; ".join(problemas),
             )
-            if tentativa == max_tentativas:
+            if tentativa >= max_tentativas:
                 # Esgotou as tentativas — entrega o que tem (incompleto é
                 # melhor que erro, mas fica registrado em log para auditoria).
                 return bloco_tool.input
@@ -268,12 +292,12 @@ def _chamar_ate_tool(
             ]
             continue
 
-        log.warning(
-            "Tentativa %d/%d: tool '%s' não foi chamada (stop_reason=%s).",
-            tentativa, max_tentativas, nome_tool, resposta.stop_reason,
-        )
-
         if resposta.stop_reason == "pause_turn":
+            log.warning(
+                "Chamada %d: tool '%s' ainda não foi chamada (stop_reason=pause_turn) — "
+                "retomando a busca em andamento, sem consumir tentativa de correção.",
+                chamadas_feitas, nome_tool,
+            )
             if pause_turn_ja_retomado:
                 # Já usamos a única retomada permitida — não insiste de novo
                 # (isso recomeçaria outro orçamento de busca). Desiste aqui.
@@ -285,11 +309,18 @@ def _chamar_ate_tool(
             # intercalar uma mensagem de usuário no meio (isso quebra o
             # par tool_use/tool_result da busca em andamento e a API
             # responde 400 "web_search tool use ... was found without a
-            # corresponding web_search_tool_result block"). Só continua.
+            # corresponding web_search_tool_result block"). Só continua —
+            # essa chamada extra já está reservada em `limite_chamadas`,
+            # não consome o contador `tentativa`.
             historico = historico + [{"role": "assistant", "content": resposta.content}]
             continue
 
-        if tentativa == max_tentativas:
+        tentativa += 1
+        log.warning(
+            "Tentativa %d/%d: tool '%s' não foi chamada (stop_reason=%s).",
+            tentativa, max_tentativas, nome_tool, resposta.stop_reason,
+        )
+        if tentativa >= max_tentativas:
             break
 
         historico = historico + [
